@@ -1,15 +1,18 @@
+#[derive(Copy, Clone, Debug)]
 pub enum Direction {
-    VERTICAL, 
-    HORIZONTAL,
+    VERTICAL = 0, 
+    HORIZONTAL = 1,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Ship {
-    pub x: UInt8,
-    pub y: UInt8,
-    pub size: UInt8,
+    pub x: u8,
+    pub y: u8,
+    pub size: u8,
     pub direction: Direction,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Board {
     pub ships: [Ship; 15],
 }
