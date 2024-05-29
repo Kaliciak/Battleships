@@ -6,7 +6,6 @@ fn main() {
 // TODO przenieść do testów
 use ark_groth16::Groth16;
 use ark_groth16::r1cs_to_qap::LibsnarkReduction;
-use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
 use ark_snark::{CircuitSpecificSetupSNARK, SNARK};
 use ark_std::{iterable::Iterable, rand::rngs::StdRng};
 use ark_std::rand::SeedableRng;
@@ -25,24 +24,23 @@ use sha2::{Sha256, Digest};
 
 fn example_proof() {
     let mut rng = StdRng::seed_from_u64(1);
-    // let empty_circuit = BoardCircuit {
-    //     board: None,
-    //     salt: None,
-    //     hash: None,
-    // };
-    
+
     let mut ships = [Ship {
         x: 2,
         y: 2,
         size: 2,
         direction: Direction::VERTICAL,
     }; 15];
-    ships[7] = Ship {
-        x: 2,
-        y: 2,
-        size: 2,
-        direction: Direction::VERTICAL,
-    };
+    ships[14].y = 9;
+    ships[14].direction = Direction::HORIZONTAL;
+
+    let mut ship_index = 0;
+    for ship_size in 1..=5 {
+        for _size_count in 0..(6-ship_size) {
+            ships[ship_index].size = ship_size; 
+            ship_index += 1;
+        }
+    }
 
     let salt = [1;32];
     // create a Sha256 object
