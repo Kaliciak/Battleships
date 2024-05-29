@@ -209,6 +209,7 @@ checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 name = "battleships"
 version = "0.1.0"
 dependencies = [
+ "async-channel 2.3.1",
  "async-std",
  "clap",
  "futures",
