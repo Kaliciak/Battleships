@@ -10,11 +10,17 @@ use ark_r1cs_std::ToBytesGadget;
 use ark_relations::ns;
 use ark_relations::r1cs::{ConstraintSystemRef, Result};
 use ark_crypto_primitives::crh::sha256::constraints::{DigestVar, Sha256Gadget};
+use ark_std::{iterable::Iterable, rand::rngs::StdRng};
+use ark_std::rand::SeedableRng;
+use ark_groth16::Groth16;
+use ark_snark::CircuitSpecificSetupSNARK;
+use ark_serialize::CanonicalSerialize;
+use std::fs::File;
 
 pub type Curve = ark_bls12_381::Bls12_381;
 pub type CircuitField = Fr;
 
-use crate::model::{Board, Ship};
+use crate::model::{Board, Direction, Ship};
 
 #[derive(Copy, Clone, Debug)]
 pub struct BoardCircuit {
@@ -88,11 +94,9 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
     // Require ships sorted by the length
     // 5 of len 1, 4 of 2, 3 of 3, 2 of 4, 1 of 5
 	SHIPS_SIZES.iter().zip(0..15).for_each(|(ship_size, ship_index) | {
-		for _size_count in 0..(6-ship_size) {
-			FpVar::enforce_equal(&ships_vars[ship_index].size, &constants[*ship_size]).unwrap();
-			// Set size_numerical
-			ships_vars[ship_index].size_numerical = Some(*ship_size);
-		}
+		FpVar::enforce_equal(&ships_vars[ship_index].size, &constants[ship_size]).unwrap();
+		// Set size_numerical
+		ships_vars[ship_index].size_numerical = Some(ship_size);
 	});
 
     // Check if every ship is placed within a 10x10 board
@@ -195,4 +199,44 @@ fn enforce_ships_not_touching(ship1: &ShipVars, ship2: &ShipVars) -> Result<()> 
 	let horizontal_condition = Boolean::or(&is_left, &is_right)?;
 	let result_condition = Boolean::or(&vertical_condition, &horizontal_condition)?;
 	Boolean::enforce_equal(&result_condition, &Boolean::TRUE)
+}
+
+pub fn generate_keys() {
+	let mut rng = StdRng::seed_from_u64(1);
+
+    let mut ships = [
+        Ship {
+            x: 1,
+            y: 1,
+            size: 1,
+            direction: Direction::VERTICAL,
+        };
+		15
+	];
+
+	SHIPS_SIZES.iter().zip(0..15).for_each(|(ship_size, ship_index) | {
+		ships[ship_index].size = ship_size as u8;
+	});
+
+	let dummy_circuit = BoardCircuit {
+        board: Board {
+            ships: ships
+        },
+        salt: [0; 32],
+        hash: [0; 32],
+    };
+
+	let now = std::time::Instant::now();
+
+	let (pk, vk) = Groth16::<Curve>::setup(dummy_circuit.clone(), &mut rng).unwrap();
+
+	println!("Keys generated");
+    let elapsed = now.elapsed();
+    println!("Elapsed: {:.2?}", elapsed);
+
+	let vk_file = File::create("keys/vk_file.key").unwrap();
+    let _ = vk.serialize_uncompressed(vk_file).unwrap();
+
+    let pk_file = File::create("keys/pk_file.key").unwrap();
+    let _ = pk.serialize_uncompressed(pk_file).unwrap();
 }
