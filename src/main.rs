@@ -26,7 +26,7 @@ fn example_proof() {
     let mut rng = StdRng::seed_from_u64(1);
 
     let mut ships = [Ship {
-        x: 2,
+        x: 1,
         y: 2,
         size: 2,
         direction: Direction::VERTICAL,
@@ -87,6 +87,8 @@ fn example_proof() {
             }
         }
     }
+
+    let empty_input = [];
 
     let now3 = std::time::Instant::now();
     let valid_proof = Groth16::<_, LibsnarkReduction>::verify(&vk, &input, &proof).unwrap();
