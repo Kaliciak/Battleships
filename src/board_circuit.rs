@@ -44,7 +44,8 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
   fn generate_constraints(self, cs: ConstraintSystemRef<CircuitField>) -> Result<()> {
 	// Generate needed constants
     // constans[i] -- constant representing i
-    let constants: Vec<FpVar<CircuitField>> = (0..=11).map(|number| FpVar::new_constant(ns!(cs, "constant"), CircuitField::from(number)).unwrap()).collect();
+    let constants: Vec<FpVar<CircuitField>> = (0..=5).map(|number| FpVar::new_constant(ns!(cs, "constant"), CircuitField::from(number)).unwrap()).collect();
+	let ten = FpVar::new_constant(ns!(cs, "10"), CircuitField::from(10))?;
 
     // Create private variables for each ship
     let mut ships_vars: [ShipVars; 15] = self.board.ships.map(|ship| create_ship_vars(&ship, &cs).unwrap());
@@ -77,10 +78,10 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
     // Check if all values are from the correct range
     for ship_index in 0..15 {
 		// 1 <= x, y <= 10
-		FpVar::enforce_cmp(&ships_vars[ship_index].x, &constants[1], std::cmp::Ordering::Greater, true)?;
-		FpVar::enforce_cmp(&ships_vars[ship_index].x, &constants[10], std::cmp::Ordering::Less, true)?;
-		FpVar::enforce_cmp(&ships_vars[ship_index].y, &constants[1], std::cmp::Ordering::Greater, true)?;
-		FpVar::enforce_cmp(&ships_vars[ship_index].y, &constants[10], std::cmp::Ordering::Less, true)?;
+		FpVar::enforce_cmp(&ships_vars[ship_index].x, &FpVar::one(), std::cmp::Ordering::Greater, true)?;
+		FpVar::enforce_cmp(&ships_vars[ship_index].x, &ten, std::cmp::Ordering::Less, true)?;
+		FpVar::enforce_cmp(&ships_vars[ship_index].y, &FpVar::one(), std::cmp::Ordering::Greater, true)?;
+		FpVar::enforce_cmp(&ships_vars[ship_index].y, &ten, std::cmp::Ordering::Less, true)?;
     }
 
     // Check lengths of the ships
@@ -96,14 +97,14 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
 
     // Check if every ship is placed within a 10x10 board
     ships_vars.iter().for_each(|ship_vars| {
-		let is_vertical = FpVar::is_eq(&ship_vars.direction, &constants[0]).unwrap();
+		let is_vertical = FpVar::is_eq(&ship_vars.direction, &FpVar::zero()).unwrap();
 
-		let new_x = &ship_vars.x + &ship_vars.size;
-		let new_y = &ship_vars.y + &ship_vars.size;
+		let new_x = &ship_vars.x + &ship_vars.size - &FpVar::one();
+		let new_y = &ship_vars.y + &ship_vars.size - &FpVar::one();
 
-		// new_x, new_y < 10
-		let is_within_x = FpVar::is_cmp(&new_x, &constants[10], std::cmp::Ordering::Less, true).unwrap();
-		let is_within_y = FpVar::is_cmp(&new_y, &constants[10], std::cmp::Ordering::Less, true).unwrap();
+		// new_x, new_y <= 10
+		let is_within_x = FpVar::is_cmp(&new_x, &ten, std::cmp::Ordering::Less, true).unwrap();
+		let is_within_y = FpVar::is_cmp(&new_y, &ten, std::cmp::Ordering::Less, true).unwrap();
 
 		let valid_requirement = Boolean::conditionally_select(&is_vertical, &is_within_y,& is_within_x).unwrap();
 		let _ = Boolean::enforce_equal(&valid_requirement, &Boolean::TRUE);
@@ -112,10 +113,10 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
     // Check if ships don't touch each other
     for i in 0..14 {
 		for j in (i+1)..15 {
-			enforce_ships_not_touching(&ships_vars[i], &ships_vars[j], &constants)?;
+			enforce_ships_not_touching(&ships_vars[i], &ships_vars[j])?;
 		}
     }
-
+	
     Ok(())
   }
 }
@@ -145,58 +146,53 @@ fn cast_fp_var_to_uint8(var: &FpVar<CircuitField>) -> Result<UInt8<CircuitField>
 	Ok(bytes[0].clone())
 }
 
-fn enforce_ships_not_touching(ship1: &ShipVars, ship2: &ShipVars, constants: &[FpVar<CircuitField>]) -> Result<()> {
-	// For every field of ship1, check if it is in the forbidden area of ship2
+fn enforce_ships_not_touching(ship1: &ShipVars, ship2: &ShipVars) -> Result<()> {
+	// Ship1 needs to be either above, below, left or right the forbidden zone of ship2
 
-	// First field is always the same, regardless of direction
-	enforce_field_not_touching_ship(&ship1.x, &ship1.y, ship2)?;
+	//-------------------
+	// Compute for ship1
 
-	// Other fields
-	for field_index in 1..ship1.size_numerical.unwrap() {
-		// If vertical then field_x = x;
-		// If horizontal then field_x = x + field_index
-		let field_x = FpVar::conditionally_select(&ship1.is_vertical, &ship1.x, &(&ship1.x + &constants[field_index]))?; 
-		// If vertical then field_y = y + field_index;
-		// If horizontal then field_y = y
-		let field_y = FpVar::conditionally_select(&ship1.is_vertical, &(&ship1.y + &constants[field_index]), &ship1.y)?; 
+	// Compute right coordinate of ship1
+	// If vertical then rect_ru_x = ship1.x
+	// If horizontal then rect_ru_x = ship1.x + ship1.size - 1
+	let ship1_right_x = FpVar::conditionally_select(&ship1.is_vertical, &ship1.x, &(&ship1.x  + &ship1.size - &FpVar::one()))?;
 
-		enforce_field_not_touching_ship(&field_x, &field_y, ship2)?;
-	}
+	// Compute lower coordinate of ship1
+	// If vertical then rect_ll_y = ship1.y + ship1.size - 1
+	// If horizontal then rect_ll_y = ship1.y
+	let ship1_lower_y = FpVar::conditionally_select(&ship1.is_vertical, &(&ship1.y + &ship1.size - &FpVar::one()), &ship1.y)?;
 
-	Ok(())
-}
-
-fn enforce_field_not_touching_ship(field_x: &FpVar<CircuitField>, field_y: &FpVar<CircuitField>, ship: &ShipVars) -> Result<()> {
-	// Compute the corners of the forbidden rectangle
+	//--------------------------------
+	// Compute forbidden zone of ship2
 
 	// Compute left upper corner of forbidden rectangle
 	// rect_lu_x = ship.x - 1
 	// rect_lu_y = ship.y - 1
-	let rect_lu_x = &ship.x - FpVar::one();
-	let rect_lu_y = &ship.y - FpVar::one();
+	let rect_lu_x = &ship2.x - FpVar::one();
+	let rect_lu_y = &ship2.y - FpVar::one();
 
 	// Compute right upper corner x
 	// If vertical then rect_ru_x = ship.x + 1
-	// If horizontal then rect_ru_x = ship.x + 1 + ship.size
-	let rect_ru_x = FpVar::conditionally_select(&ship.is_vertical, &(&ship.x + &FpVar::one()), &(&ship.x  + &FpVar::one() + &ship.size))?;
+	// If horizontal then rect_ru_x = ship.x + ship.size
+	let rect_ru_x = FpVar::conditionally_select(&ship2.is_vertical, &(&ship2.x + &FpVar::one()), &(&ship2.x  + &ship2.size))?;
 	
 	// Compute left lower corner y
-	// If vertical then rect_ll_y = ship.y + 1 + ship.size
+	// If vertical then rect_ll_y = ship.y + ship.size
 	// If horizontal then rect_ll_y = ship.y + 1
-	let rect_ll_y = FpVar::conditionally_select(&ship.is_vertical, &(&ship.y + &FpVar::one() + &ship.size), &(&ship.y + &FpVar::one()))?;
+	let rect_ll_y = FpVar::conditionally_select(&ship2.is_vertical, &(&ship2.y + &ship2.size), &(&ship2.y + &FpVar::one()))?;
 
-	// field_x < rect_lu_x || rect_ru_x < field_x || /* if collision with x then check y*/ (field_y < rect_lu_y || rect_ll_y < field_y)
-	let fx_lt_lux = FpVar::is_cmp(&field_x, &rect_lu_x, std::cmp::Ordering::Less, false)?;
-	let fx_gt_rux = FpVar::is_cmp(&field_x, &rect_ru_x, std::cmp::Ordering::Greater, false)?;
-	let fy_lt_luy = FpVar::is_cmp(&field_y, &rect_lu_y, std::cmp::Ordering::Less, false)?;
-	let fy_gt_lly = FpVar::is_cmp(&field_y, &rect_ll_y, std::cmp::Ordering::Greater, false)?;
+	// ------------
+	// Touch check
 
-	let x_cond = Boolean::or(&fx_lt_lux, &fx_gt_rux)?;
-	let y_cond = Boolean::or(&fy_lt_luy, &fy_gt_lly)?;
-	let total_cond = Boolean::or(&x_cond, &y_cond)?;
-	Boolean::enforce_equal(&total_cond, &Boolean::TRUE)?;
+	// Check postition of ship1 relative to zone
+	let is_above = FpVar::is_cmp(&ship1_lower_y, &rect_lu_y, std::cmp::Ordering::Less, false)?;
+	let is_below = FpVar::is_cmp(&ship1.y, &rect_ll_y, std::cmp::Ordering::Greater, false)?;
+	let is_left = FpVar::is_cmp(&ship1_right_x, &rect_lu_x, std::cmp::Ordering::Less, false)?;
+	let is_right = FpVar::is_cmp(&ship1.x, &rect_ru_x, std::cmp::Ordering::Greater, false)?;
 
-	Ok(())
+	// Ship1 must be in either of one of these positions
+	let vertical_condition = Boolean::or(&is_above, &is_below)?;
+	let horizontal_condition = Boolean::or(&is_left, &is_right)?;
+	let result_condition = Boolean::or(&vertical_condition, &horizontal_condition)?;
+	Boolean::enforce_equal(&result_condition, &Boolean::TRUE)
 }
-
-// Statek albo jest cały nad albo cały pod, albo cały na prawo, albo cały na lewo I tyle

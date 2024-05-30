@@ -25,22 +25,98 @@ use sha2::{Sha256, Digest};
 fn example_proof() {
     let mut rng = StdRng::seed_from_u64(1);
 
-    let mut ships = [Ship {
-        x: 1,
-        y: 2,
-        size: 2,
-        direction: Direction::VERTICAL,
-    }; 15];
-    ships[14].y = 9;
-    ships[14].direction = Direction::HORIZONTAL;
-
-    let mut ship_index = 0;
-    for ship_size in 1..=5 {
-        for _size_count in 0..(6-ship_size) {
-            ships[ship_index].size = ship_size; 
-            ship_index += 1;
-        }
-    }
+    let mut ships = [
+        Ship {
+            x: 1,
+            y: 1,
+            size: 1,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 1,
+            y: 3,
+            size: 1,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 1,
+            y: 5,
+            size: 1,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 1,
+            y: 7,
+            size: 1,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 1,
+            y: 9,
+            size: 1,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 3,
+            y: 1,
+            size: 2,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 3,
+            y: 4,
+            size: 2,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 3,
+            y: 7,
+            size: 2,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 3,
+            y: 10,
+            size: 2,
+            direction: Direction::HORIZONTAL,
+        },
+        Ship {
+            x: 5,
+            y: 1,
+            size: 3,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 5,
+            y: 5,
+            size: 3,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 6,
+            y: 10,
+            size: 3,
+            direction: Direction::HORIZONTAL,
+        },
+        Ship {
+            x: 7,
+            y: 1,
+            size: 4,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 9,
+            y: 1,
+            size: 4,
+            direction: Direction::VERTICAL,
+        },
+        Ship {
+            x: 10,
+            y: 6,
+            size: 5,
+            direction: Direction::VERTICAL,
+        },
+    ];
 
     let salt = [1;32];
     // create a Sha256 object
@@ -87,8 +163,6 @@ fn example_proof() {
             }
         }
     }
-
-    let empty_input = [];
 
     let now3 = std::time::Instant::now();
     let valid_proof = Groth16::<_, LibsnarkReduction>::verify(&vk, &input, &proof).unwrap();
