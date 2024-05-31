@@ -57,7 +57,10 @@ pub fn run_main_loop_with_cli() {
                             };
                         }
                         if words[0] == "msg" {
-                            return Input::SendMessage(words[1].to_owned(), words[2..].join(" ").to_owned());
+                            return Input::SendMessage(
+                                words[1].to_owned(),
+                                words[2..].join(" ").to_owned(),
+                            );
                         }
                         self.get_logger().log_message("Invalid command");
                     }
