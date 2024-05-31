@@ -1,5 +1,5 @@
 [package]
-name = "Battleships"
+name = "battleships"
 version = "0.1.0"
 edition = "2021"
 
@@ -20,3 +20,11 @@ ark-poly = { version = "0.4.2" }
 ark-poly-commit = { version = "0.4.0" }
 ark-r1cs-std = { version = "0.4.0" }
 sha2 = "0.10.8"
+
+async-std = "1.12.0"
+async-channel = "2.3.1"
+futures = "0.3.30"
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+rustyline-async = "0.4.2"
+clap = "4.5.4"
