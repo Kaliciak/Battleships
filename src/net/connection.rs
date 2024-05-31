@@ -90,7 +90,7 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
         logger.log_message(&format!("Connecting to {}...", addr));
         let stream = TcpStream::connect(addr).await?;
         let mut endpoint = Endpoint {
-            second_addr: stream.peer_addr()?.to_string().to_owned(),
+            second_addr: stream.local_addr()?.to_string().to_owned(),
             stream,
             pd: PhantomData,
         };

@@ -2,7 +2,7 @@ use futures::{pin_mut, select, FutureExt};
 
 use crate::{
     gui::{Gui, Input},
-    networking::{connection::Endpoint, message::Message},
+    net::{connection::Endpoint, message::Message},
 };
 
 use super::GameMessage;

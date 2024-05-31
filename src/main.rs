@@ -3,7 +3,7 @@ use logic::run_main_loop_with_cli;
 mod gui;
 mod logic;
 mod model;
-mod networking;
+mod net;
 
 fn main() {
     run_main_loop_with_cli();

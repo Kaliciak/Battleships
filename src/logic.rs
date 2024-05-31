@@ -40,7 +40,7 @@ pub fn run_main_loop_with_cli() {
                     rustyline_async::ReadlineEvent::Line(line) => {
                         self.reader.add_history_entry(line.clone());
                         let words = line.split(' ').collect::<Vec<&str>>();
-                        if words.len() != 3 {
+                        if words.len() < 3 {
                             self.get_logger().log_message("Invalid command");
                             continue;
                         }
@@ -57,7 +57,7 @@ pub fn run_main_loop_with_cli() {
                             };
                         }
                         if words[0] == "msg" {
-                            return Input::SendMessage(words[1].to_owned(), words[2].to_owned());
+                            return Input::SendMessage(words[1].to_owned(), words[2..].join(" ").to_owned());
                         }
                         self.get_logger().log_message("Invalid command");
                     }
