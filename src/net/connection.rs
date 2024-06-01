@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{borrow::Borrow, marker::PhantomData};
 
 use async_std::{
     io::{ReadExt, WriteExt},
@@ -6,10 +6,38 @@ use async_std::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::gui::Logger;
+use crate::utils::{input::InputFilter, log::Log};
 
 use super::result::Result;
 use super::{message::Message, result::Error};
+
+pub async fn get_net_input<T: Serialize + for<'a> Deserialize<'a>>(
+    filter: &mut InputFilter,
+    channel: &mut Endpoint<T>,
+) -> Message<T> {
+    match channel.receive().await {
+        Ok(x) => {
+            match x.borrow() {
+                Message::Info { sender, info } => filter
+                    .logger
+                    .log_message(&format!("{}|  {}> {}", channel.second_addr, sender, info)),
+                Message::Error { sender, info } => {
+                    filter.logger.log_message(&format!(
+                        "{}|  {}!!!> {}",
+                        channel.second_addr, sender, info
+                    ));
+                    return filter.interrupt().await;
+                }
+                _ => {}
+            };
+            x
+        }
+        Err(e) => {
+            filter.logger.log_message(&e.message);
+            filter.interrupt().await
+        }
+    }
+}
 
 pub struct Endpoint<T: Serialize + for<'a> Deserialize<'a>> {
     stream: TcpStream,
@@ -42,24 +70,30 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
     pub async fn accept_incoming_connection(
         addr: &str,
         passwd: &str,
-        logger: &mut (impl Logger + ?Sized),
+        mut filter: InputFilter,
     ) -> Result<Self> {
-        logger.log_message(&format!("Listening on {}...", addr));
+        filter
+            .logger
+            .log_message(&format!("Listening on {}...", addr));
         let listener = TcpListener::bind(addr).await?;
 
         loop {
             let (stream, second_addr) = listener.accept().await?;
-            logger.log_message(&format!("Received connection from {}", second_addr));
+            filter
+                .logger
+                .log_message(&format!("Received connection from {}", second_addr));
             let mut endpoint = Endpoint::<T> {
                 stream,
                 second_addr: second_addr.to_string(),
                 pd: PhantomData,
             };
 
-            logger.log_message("Waiting for password...");
-            if let Message::Info { sender: _, info } = endpoint.receive().await? {
+            filter.logger.log_message("Waiting for password...");
+            if let Message::Info { sender: _, info } =
+                get_net_input(&mut filter, &mut endpoint).await
+            {
                 if info == passwd {
-                    logger.log_message("Correct password");
+                    filter.logger.log_message("Correct password");
                     endpoint
                         .send(&Message::Info {
                             sender: "HOST".to_owned(),
@@ -67,7 +101,9 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
                         })
                         .await?;
                 } else {
-                    logger.log_message("Incorrect password, refusing connection.");
+                    filter
+                        .logger
+                        .log_message("Incorrect password, refusing connection.");
                     endpoint
                         .send(&Message::Error {
                             sender: "HOST".to_owned(),
@@ -85,9 +121,11 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
     pub async fn create_connection_to(
         addr: &str,
         passwd: &str,
-        logger: &mut (impl Logger + ?Sized),
+        mut filter: InputFilter,
     ) -> Result<Self> {
-        logger.log_message(&format!("Connecting to {}...", addr));
+        filter
+            .logger
+            .log_message(&format!("Connecting to {}...", addr));
         let stream = TcpStream::connect(addr).await?;
         let mut endpoint = Endpoint {
             second_addr: stream.local_addr()?.to_string().to_owned(),
@@ -101,12 +139,13 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
             })
             .await?;
 
-        let response = endpoint.receive().await?;
-        if let Message::Info { sender: _, info: _ } = response {
+        if let Message::Info { sender: _, info: _ } =
+            get_net_input(&mut filter, &mut endpoint).await
+        {
             Ok(endpoint)
         } else {
             Err(Error {
-                message: "Incorrect password".to_owned(),
+                message: "Invalid response".to_owned(),
             })
         }
     }

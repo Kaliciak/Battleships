@@ -1,54 +1,56 @@
 use futures::{pin_mut, select, Future, FutureExt};
 
 use crate::{
-    gui::{Gui, Input},
+    gui::{get_gui_input, Gui},
     net::{connection::Endpoint, result::Result},
+    utils::{input::InputFilter, log::Log},
 };
 
 use super::GameMessage;
 
-async fn await_interruptible<H>(f: impl Future<Output = H>, gui: &mut impl Gui) -> Option<H> {
+async fn await_interruptible<H>(
+    f: impl Future<Output = H>,
+    filter: &mut InputFilter,
+    gui: &mut impl Gui,
+) -> H {
     let future = f.fuse();
     let esc_future = async {
         loop {
-            if let Input::Esc = gui.receive_input().await {
-                return;
-            }
+            get_gui_input(filter, gui).await;
         }
     }
     .fuse();
 
     pin_mut!(future, esc_future);
     select! {
-        () = esc_future => None,
-        val = future => Some(val)
+        val = esc_future => val,
+        val = future => val
     }
 }
 
 async fn get_channel_from_network_task(
     f: impl Future<Output = Result<Endpoint<GameMessage>>>,
+    filter: &mut InputFilter,
     gui: &mut impl Gui,
 ) -> Option<Endpoint<GameMessage>> {
-    if let Some(val) = await_interruptible(f.fuse(), gui).await {
-        match val {
-            Ok(channel) => Some(channel),
-            Err(e) => {
-                gui.get_logger().log_message(&e.message);
-                None
-            }
+    match await_interruptible(f.fuse(), filter, gui).await {
+        Ok(channel) => Some(channel),
+        Err(e) => {
+            gui.get_logger().log_message(&e.message);
+            None
         }
-    } else {
-        None
     }
 }
 
 pub async fn create_host(
     addr: &str,
     passwd: &str,
+    filter: &mut InputFilter,
     gui: &mut impl Gui,
 ) -> Option<Endpoint<GameMessage>> {
     get_channel_from_network_task(
-        Endpoint::accept_incoming_connection(addr, passwd, gui.get_logger().as_mut()),
+        Endpoint::accept_incoming_connection(addr, passwd, filter.clone()),
+        filter,
         gui,
     )
     .await
@@ -57,10 +59,12 @@ pub async fn create_host(
 pub async fn create_client(
     addr: &str,
     passwd: &str,
+    filter: &mut InputFilter,
     gui: &mut impl Gui,
 ) -> Option<Endpoint<GameMessage>> {
     get_channel_from_network_task(
-        Endpoint::create_connection_to(addr, passwd, gui.get_logger().as_mut()),
+        Endpoint::create_connection_to(addr, passwd, filter.clone()),
+        filter,
         gui,
     )
     .await

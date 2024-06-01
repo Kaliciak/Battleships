@@ -1,11 +1,15 @@
-use std::io::Write;
+use std::{cell::RefCell, io::Write, rc::Rc};
 
 use rustyline_async::{Readline, SharedWriter};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    gui::{self, Gui, Input, Logger},
+    gui::{self, Gui, Input},
     logic,
+    utils::{
+        self,
+        log::{Log, Logger},
+    },
 };
 
 mod game_init;
@@ -20,7 +24,7 @@ pub fn run_main_loop_with_cli() {
     struct CliLogger {
         writer: SharedWriter,
     }
-    impl Logger for CliLogger {
+    impl Log for CliLogger {
         fn log_message(&mut self, msg: &str) {
             self.writer
                 .write_all(format!("{}\n", msg).as_bytes())
@@ -76,10 +80,12 @@ pub fn run_main_loop_with_cli() {
             self.get_logger().log_message("\n\nWitamy w grze w statki!\n\n   create address:port password => create game\n   join address:port password => join game\n   msg name info => send msg to the second player\n   Ctrl-C => Interrupt\n   Ctrl-D => Exit\n");
         }
 
-        fn get_logger(&mut self) -> Box<dyn Logger> {
-            Box::new(CliLogger {
-                writer: self.writer.clone(),
-            })
+        fn get_logger(&mut self) -> Logger {
+            utils::log::Logger {
+                log: Rc::new(RefCell::new(CliLogger {
+                    writer: self.writer.clone(),
+                })),
+            }
         }
 
         fn show_lobby(&mut self) {
