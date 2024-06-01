@@ -1,9 +1,9 @@
 #[derive(Copy, Clone, Debug)]
 pub enum Direction {
     // downwards
-    VERTICAL = 0,
+    Vertical = 0,
     // to the right
-    HORIZONTAL = 1,
+    Horizontal = 1,
 }
 
 #[derive(Copy, Clone, Debug)]

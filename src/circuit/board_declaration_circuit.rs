@@ -1,5 +1,4 @@
 use ark_bls12_381::Fr;
-use ark_crypto_primitives::crh::sha256::constraints::{DigestVar, Sha256Gadget};
 use ark_groth16::Groth16;
 use ark_r1cs_std::alloc::AllocVar;
 use ark_r1cs_std::boolean::Boolean;
@@ -8,7 +7,6 @@ use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::fields::FieldVar;
 use ark_r1cs_std::select::CondSelectGadget;
 use ark_r1cs_std::uint8::UInt8;
-use ark_r1cs_std::ToBytesGadget;
 use ark_relations::ns;
 use ark_relations::r1cs::{ConstraintSystemRef, Result};
 use ark_serialize::CanonicalSerialize;
@@ -21,26 +19,20 @@ pub type Curve = ark_bls12_381::Bls12_381;
 pub type CircuitField = Fr;
 
 use crate::model::{Board, Direction, Ship};
+use crate::circuit::commons::ShipVars;
+
+use super::commons::compute_hash;
 
 #[derive(Copy, Clone, Debug)]
-pub struct BoardCircuit {
+pub struct BoardDeclarationCircuit {
     pub board: Board,
     pub salt: [u8; 32],
     pub hash: [u8; 32],
 }
 
-struct ShipVars {
-    pub x: FpVar<CircuitField>,
-    pub y: FpVar<CircuitField>,
-    pub size: FpVar<CircuitField>,
-    pub size_numerical: Option<usize>,
-    pub direction: FpVar<CircuitField>,
-    pub is_vertical: Boolean<CircuitField>,
-}
-
 const SHIPS_SIZES: [usize; 15] = [1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5];
 
-impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
+impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardDeclarationCircuit {
     fn generate_constraints(self, cs: ConstraintSystemRef<CircuitField>) -> Result<()> {
         // Generate needed constants
         // constans[i] -- constant representing i
@@ -68,22 +60,9 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
         //--------------------------
         // Check if hash is correct
 
-        let mut hash_gadget: Sha256Gadget<CircuitField> = Sha256Gadget::default();
-        // Hash every ship
-        ships_vars.iter().for_each(|ship_vars| {
-            hash_gadget
-                .update(&[
-                    cast_fp_var_to_uint8(&ship_vars.x).unwrap(),
-                    cast_fp_var_to_uint8(&ship_vars.y).unwrap(),
-                    cast_fp_var_to_uint8(&ship_vars.size).unwrap(),
-                    cast_fp_var_to_uint8(&ship_vars.direction).unwrap(),
-                ])
-                .unwrap()
-        });
-        // Add salt
-        hash_gadget.update(&salt_vars)?;
-        // Compute hash
-        let digest_var: DigestVar<CircuitField> = hash_gadget.finalize().unwrap();
+        // Compute the hash
+        let digest_var = compute_hash(&ships_vars, &salt_vars)?;
+
         // Compare the hashes
         hash_vars
             .iter()
@@ -94,28 +73,28 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
         // Check if the board is correct
 
         // Check if all values are from the correct range
-        for ship_index in 0..15 {
+        for ship_vars in &ships_vars {
             // 1 <= x, y <= 10
             FpVar::enforce_cmp(
-                &ships_vars[ship_index].x,
+                &ship_vars.x,
                 &FpVar::one(),
                 std::cmp::Ordering::Greater,
                 true,
             )?;
             FpVar::enforce_cmp(
-                &ships_vars[ship_index].x,
+                &ship_vars.x,
                 &ten,
                 std::cmp::Ordering::Less,
                 true,
             )?;
             FpVar::enforce_cmp(
-                &ships_vars[ship_index].y,
+                &ship_vars.y,
                 &FpVar::one(),
                 std::cmp::Ordering::Greater,
                 true,
             )?;
             FpVar::enforce_cmp(
-                &ships_vars[ship_index].y,
+                &ship_vars.y,
                 &ten,
                 std::cmp::Ordering::Less,
                 true,
@@ -179,13 +158,6 @@ fn create_ship_vars(ship: &Ship, cs: &ConstraintSystemRef<CircuitField>) -> Resu
         direction,
         is_vertical,
     })
-}
-
-// Need to also check if the var is less than 8 bytes long
-fn cast_fp_var_to_uint8(var: &FpVar<CircuitField>) -> Result<UInt8<CircuitField>> {
-    let bytes = FpVar::to_bytes(&var)?;
-    // to_bytes function returns [var, 0, 0, 0, ...] -- a vector of UInt8 of len 32 (in case of not too large var)
-    Ok(bytes[0].clone())
 }
 
 fn enforce_ships_not_touching(ship1: &ShipVars, ship2: &ShipVars) -> Result<()> {
@@ -262,7 +234,7 @@ pub fn generate_keys() {
         x: 1,
         y: 1,
         size: 1,
-        direction: Direction::VERTICAL,
+        direction: Direction::Vertical,
     }; 15];
 
     SHIPS_SIZES
@@ -272,7 +244,7 @@ pub fn generate_keys() {
             ships[ship_index].size = ship_size as u8;
         });
 
-    let dummy_circuit = BoardCircuit {
+    let dummy_circuit = BoardDeclarationCircuit {
         board: Board { ships },
         salt: [0; 32],
         hash: [0; 32],
@@ -280,15 +252,15 @@ pub fn generate_keys() {
 
     let now = std::time::Instant::now();
 
-    let (pk, vk) = Groth16::<Curve>::setup(dummy_circuit.clone(), &mut rng).unwrap();
+    let (pk, vk) = Groth16::<Curve>::setup(dummy_circuit, &mut rng).unwrap();
 
     println!("Keys generated");
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
 
-    let vk_file = File::create("keys/vk_file.key").unwrap();
-    let _ = vk.serialize_uncompressed(vk_file).unwrap();
+    let vk_file = File::create("keys/board_declaration/vk.bin").unwrap();
+    vk.serialize_uncompressed(vk_file).unwrap();
 
-    let pk_file = File::create("keys/pk_file.key").unwrap();
-    let _ = pk.serialize_uncompressed(pk_file).unwrap();
+    let pk_file = File::create("keys/board_declaration/pk.bin").unwrap();
+    pk.serialize_uncompressed(pk_file).unwrap();
 }
