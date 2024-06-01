@@ -7,6 +7,14 @@ pub enum Direction {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub enum FieldState {
+    // No ship on the field
+    Empty = 0,
+    // There is a ship occupying the field
+    Occupied = 1,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct Ship {
     pub x: u8,
     pub y: u8,

@@ -13,15 +13,17 @@ use ark_serialize::CanonicalSerialize;
 use ark_snark::CircuitSpecificSetupSNARK;
 use ark_std::rand::SeedableRng;
 use ark_std::{iterable::Iterable, rand::rngs::StdRng};
+use std::cmp::Ordering;
 use std::fs::File;
 
 pub type Curve = ark_bls12_381::Bls12_381;
 pub type CircuitField = Fr;
 
-use crate::model::{Board, Direction, Ship};
 use crate::circuit::commons::ShipVars;
+use crate::model::{Board, Direction, Ship};
 
-use super::commons::compute_hash;
+use super::commons::SHIPS_SIZES;
+use super::commons::{compute_hash, create_ship_vars};
 
 #[derive(Copy, Clone, Debug)]
 pub struct BoardDeclarationCircuit {
@@ -29,8 +31,6 @@ pub struct BoardDeclarationCircuit {
     pub salt: [u8; 32],
     pub hash: [u8; 32],
 }
-
-const SHIPS_SIZES: [usize; 15] = [1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5];
 
 impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardDeclarationCircuit {
     fn generate_constraints(self, cs: ConstraintSystemRef<CircuitField>) -> Result<()> {
@@ -73,33 +73,13 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardDeclarati
         // Check if the board is correct
 
         // Check if all values are from the correct range
-        for ship_vars in &ships_vars {
+        ships_vars.iter().for_each(|ship_vars| {
             // 1 <= x, y <= 10
-            FpVar::enforce_cmp(
-                &ship_vars.x,
-                &FpVar::one(),
-                std::cmp::Ordering::Greater,
-                true,
-            )?;
-            FpVar::enforce_cmp(
-                &ship_vars.x,
-                &ten,
-                std::cmp::Ordering::Less,
-                true,
-            )?;
-            FpVar::enforce_cmp(
-                &ship_vars.y,
-                &FpVar::one(),
-                std::cmp::Ordering::Greater,
-                true,
-            )?;
-            FpVar::enforce_cmp(
-                &ship_vars.y,
-                &ten,
-                std::cmp::Ordering::Less,
-                true,
-            )?;
-        }
+            FpVar::enforce_cmp(&ship_vars.x, &FpVar::one(), Ordering::Greater, true).unwrap();
+            FpVar::enforce_cmp(&ship_vars.x, &ten, Ordering::Less, true).unwrap();
+            FpVar::enforce_cmp(&ship_vars.y, &FpVar::one(), Ordering::Greater, true).unwrap();
+            FpVar::enforce_cmp(&ship_vars.y, &ten, Ordering::Less, true).unwrap();
+        });
 
         // Check lengths of the ships
         // Require ships sorted by the length
@@ -121,8 +101,8 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardDeclarati
             let new_y = &ship_vars.y + &ship_vars.size - &FpVar::one();
 
             // new_x, new_y <= 10
-            let is_within_x = FpVar::is_cmp(&new_x, &ten, std::cmp::Ordering::Less, true).unwrap();
-            let is_within_y = FpVar::is_cmp(&new_y, &ten, std::cmp::Ordering::Less, true).unwrap();
+            let is_within_x = FpVar::is_cmp(&new_x, &ten, Ordering::Less, true).unwrap();
+            let is_within_y = FpVar::is_cmp(&new_y, &ten, Ordering::Less, true).unwrap();
 
             let valid_requirement =
                 Boolean::conditionally_select(&is_vertical, &is_within_y, &is_within_x).unwrap();
@@ -138,26 +118,6 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardDeclarati
 
         Ok(())
     }
-}
-
-fn create_ship_vars(ship: &Ship, cs: &ConstraintSystemRef<CircuitField>) -> Result<ShipVars> {
-    let direction = FpVar::new_witness(ns!(cs, "shipDirection"), || {
-        Ok(CircuitField::from(ship.direction as u8))
-    })?;
-    // direction <= 1
-    FpVar::enforce_cmp(&direction, &FpVar::one(), std::cmp::Ordering::Less, true)?;
-
-    let is_vertical = FpVar::is_eq(&direction, &FpVar::zero()).unwrap();
-
-    Ok(ShipVars {
-        x: FpVar::new_witness(ns!(cs, "shipX"), || Ok(CircuitField::from(ship.x)))?,
-        y: FpVar::new_witness(ns!(cs, "shipY"), || Ok(CircuitField::from(ship.y)))?,
-        size: FpVar::new_witness(ns!(cs, "shipSize"), || Ok(CircuitField::from(ship.size)))?,
-        // To be set later
-        size_numerical: None,
-        direction,
-        is_vertical,
-    })
 }
 
 fn enforce_ships_not_touching(ship1: &ShipVars, ship2: &ShipVars) -> Result<()> {
@@ -215,10 +175,10 @@ fn enforce_ships_not_touching(ship1: &ShipVars, ship2: &ShipVars) -> Result<()> 
     // Touch check
 
     // Check postition of ship1 relative to zone
-    let is_above = FpVar::is_cmp(&ship1_lower_y, &rect_lu_y, std::cmp::Ordering::Less, false)?;
-    let is_below = FpVar::is_cmp(&ship1.y, &rect_ll_y, std::cmp::Ordering::Greater, false)?;
-    let is_left = FpVar::is_cmp(&ship1_right_x, &rect_lu_x, std::cmp::Ordering::Less, false)?;
-    let is_right = FpVar::is_cmp(&ship1.x, &rect_ru_x, std::cmp::Ordering::Greater, false)?;
+    let is_above = FpVar::is_cmp(&ship1_lower_y, &rect_lu_y, Ordering::Less, false)?;
+    let is_below = FpVar::is_cmp(&ship1.y, &rect_ll_y, Ordering::Greater, false)?;
+    let is_left = FpVar::is_cmp(&ship1_right_x, &rect_lu_x, Ordering::Less, false)?;
+    let is_right = FpVar::is_cmp(&ship1.x, &rect_ru_x, Ordering::Greater, false)?;
 
     // Ship1 must be in either of one of these positions
     let vertical_condition = Boolean::or(&is_above, &is_below)?;
