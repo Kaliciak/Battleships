@@ -1,6 +1,9 @@
 use async_channel::{Receiver, Sender};
 use async_std::task;
-use futures::{pin_mut, select, Future, FutureExt};
+use futures::{
+    future::{select, Either},
+    pin_mut, select, Future, FutureExt,
+};
 
 struct InfTask {}
 

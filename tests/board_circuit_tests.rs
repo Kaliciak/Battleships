@@ -2,21 +2,21 @@
 mod tests {
     use battleships::{
         board_circuit::BoardCircuit,
+        crypto::keys::read_keys,
         model::{Board, Direction, Ship},
+        utils::log::get_print_logger,
     };
 
-    use ark_bls12_381::{Config, Fr};
-    use ark_ec::bls12::Bls12;
+    use ark_bls12_381::Fr;
+
     use ark_ff::{One, Zero};
     use ark_groth16::r1cs_to_qap::LibsnarkReduction;
-    use ark_groth16::{Groth16, ProvingKey, VerifyingKey};
+    use ark_groth16::Groth16;
     use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
-    use ark_serialize::CanonicalDeserialize;
     use ark_snark::SNARK;
     use ark_std::rand::SeedableRng;
     use ark_std::{iterable::Iterable, rand::rngs::StdRng};
     use sha2::{Digest, Sha256};
-    use std::fs::File;
 
     pub type CircuitField = Fr;
 
@@ -134,7 +134,7 @@ mod tests {
             hash: hash_result.into(),
         };
 
-        let (vk, pk) = read_keys();
+        let (vk, pk) = read_keys(get_print_logger());
 
         let now = std::time::Instant::now();
         let mut rng: StdRng = StdRng::seed_from_u64(1);
@@ -639,7 +639,7 @@ mod tests {
             hash: hash_result.into(),
         };
 
-        let (vk, pk) = read_keys();
+        let (vk, pk) = read_keys(get_print_logger());
 
         let mut rng: StdRng = StdRng::seed_from_u64(1);
         let proof: ark_groth16::Proof<ark_ec::bls12::Bls12<ark_bls12_381::Config>> =
@@ -650,23 +650,5 @@ mod tests {
 
         let valid_proof = Groth16::<_, LibsnarkReduction>::verify(&vk, &input, &proof).unwrap();
         assert!(!valid_proof);
-    }
-
-    fn read_keys() -> (VerifyingKey<Bls12<Config>>, ProvingKey<Bls12<Config>>) {
-        let now = std::time::Instant::now();
-
-        let vk_file = File::open("keys/vk_file.key").unwrap();
-        let vk = VerifyingKey::deserialize_uncompressed_unchecked(vk_file).unwrap();
-        println!("vk deserialized");
-
-        let pk_file = File::open("keys/pk_file.key").unwrap();
-        let pk: ProvingKey<ark_ec::bls12::Bls12<ark_bls12_381::Config>> =
-            ProvingKey::deserialize_uncompressed_unchecked(pk_file).unwrap();
-
-        println!("keys deserialized");
-        let elapsed = now.elapsed();
-        println!("Elapsed: {:.2?}", elapsed);
-
-        (vk, pk)
     }
 }

@@ -1,24 +1,43 @@
-use crate::utils::{input::InputFilter, log::Logger};
+use async_channel::Sender;
 
-pub trait Gui {
-    fn get_logger(&mut self) -> Logger;
-    async fn receive_input(&mut self) -> Input;
-    fn go_to_main_screen(&mut self);
-    fn show_lobby(&mut self);
+use crate::{
+    model::IncompleteBoard,
+    utils::{
+        async_receiver::AsyncReceiver,
+        log::{Log, Logger},
+    },
+    Ship,
+};
+
+pub type GuiSender = Sender<GuiMessage>;
+pub type GuiReceiver = AsyncReceiver<GuiInput>;
+
+impl Log for GuiSender {
+    fn log_message(&mut self, msg: &str) {
+        self.send_blocking(GuiMessage::Log(msg.to_owned())).unwrap();
+    }
 }
 
-pub enum Input {
+impl From<GuiSender> for Logger {
+    fn from(value: GuiSender) -> Self {
+        Logger::new(value)
+    }
+}
+
+/// Message (state) that can be send to the GUI
+pub enum GuiMessage {
+    Log(String),
+    MainScreen,
+    Lobby,
+    BoardConstruction(IncompleteBoard),
+}
+
+/// Input received from the GUI
+pub enum GuiInput {
     HostGame { addr: String, passwd: String },
     JoinGame { addr: String, passwd: String },
     SendMessage(String, String),
+    PutShip(Ship),
     Esc,
     Exit,
-}
-
-pub async fn get_gui_input(filter: &mut InputFilter, gui: &mut impl Gui) -> Input {
-    match gui.receive_input().await {
-        Input::Esc => filter.interrupt().await,
-        Input::Exit => filter.exit().await,
-        x => x,
-    }
 }
