@@ -1,17 +1,17 @@
 use futures::{pin_mut, select, Future, FutureExt};
 
 use crate::{
-    gui::{Gui, Input},
+    ui::{UI, Input},
     net::{connection::Endpoint, result::Result},
 };
 
 use super::GameMessage;
 
-async fn await_interruptible<H>(f: impl Future<Output = H>, gui: &mut impl Gui) -> Option<H> {
+async fn await_interruptible<H>(f: impl Future<Output = H>, ui: &mut impl UI) -> Option<H> {
     let future = f.fuse();
     let esc_future = async {
         loop {
-            if let Input::Esc = gui.receive_input().await {
+            if let Input::Esc = ui.receive_input().await {
                 return;
             }
         }
@@ -27,13 +27,13 @@ async fn await_interruptible<H>(f: impl Future<Output = H>, gui: &mut impl Gui) 
 
 async fn get_channel_from_network_task(
     f: impl Future<Output = Result<Endpoint<GameMessage>>>,
-    gui: &mut impl Gui,
+    ui: &mut impl UI,
 ) -> Option<Endpoint<GameMessage>> {
-    if let Some(val) = await_interruptible(f.fuse(), gui).await {
+    if let Some(val) = await_interruptible(f.fuse(), ui).await {
         match val {
             Ok(channel) => Some(channel),
             Err(e) => {
-                gui.get_logger().log_message(&e.message);
+                ui.get_logger().log_message(&e.message);
                 None
             }
         }
@@ -45,11 +45,11 @@ async fn get_channel_from_network_task(
 pub async fn create_host(
     addr: &str,
     passwd: &str,
-    gui: &mut impl Gui,
+    ui: &mut impl UI,
 ) -> Option<Endpoint<GameMessage>> {
     get_channel_from_network_task(
-        Endpoint::accept_incoming_connection(addr, passwd, gui.get_logger().as_mut()),
-        gui,
+        Endpoint::accept_incoming_connection(addr, passwd, ui.get_logger().as_mut()),
+        ui,
     )
     .await
 }
@@ -57,11 +57,11 @@ pub async fn create_host(
 pub async fn create_client(
     addr: &str,
     passwd: &str,
-    gui: &mut impl Gui,
+    ui: &mut impl UI,
 ) -> Option<Endpoint<GameMessage>> {
     get_channel_from_network_task(
-        Endpoint::create_connection_to(addr, passwd, gui.get_logger().as_mut()),
-        gui,
+        Endpoint::create_connection_to(addr, passwd, ui.get_logger().as_mut()),
+        ui,
     )
     .await
 }

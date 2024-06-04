@@ -6,7 +6,7 @@ use async_std::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::gui::Logger;
+use crate::ui::Logger;
 
 use super::result::Result;
 use super::{message::Message, result::Error};

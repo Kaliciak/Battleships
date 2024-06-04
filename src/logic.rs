@@ -4,7 +4,7 @@ use rustyline_async::{Readline, SharedWriter};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    gui::{self, Gui, Input, Logger},
+    ui::{self, UI, Input, Logger},
     logic,
 };
 
@@ -32,8 +32,8 @@ pub fn run_main_loop_with_cli() {
         writer: SharedWriter,
     }
 
-    impl Gui for Cli {
-        async fn receive_input(&mut self) -> gui::Input {
+    impl UI for Cli {
+        async fn receive_input(&mut self) -> ui::Input {
             loop {
                 let input = self.reader.readline().await.unwrap();
                 match input {
@@ -65,9 +65,9 @@ pub fn run_main_loop_with_cli() {
                         self.get_logger().log_message("Invalid command");
                     }
                     rustyline_async::ReadlineEvent::Eof => {
-                        return gui::Input::Exit;
+                        return ui::Input::Exit;
                     }
-                    rustyline_async::ReadlineEvent::Interrupted => return gui::Input::Esc,
+                    rustyline_async::ReadlineEvent::Interrupted => return ui::Input::Esc,
                 }
             }
         }

@@ -2,7 +2,7 @@ pub trait Logger {
     fn log_message(&mut self, msg: &str);
 }
 
-pub trait Gui {
+pub trait UI {
     fn get_logger(&mut self) -> Box<dyn Logger>;
     async fn receive_input(&mut self) -> Input;
     fn go_to_main_screen(&mut self);
