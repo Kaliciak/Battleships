@@ -1,0 +1,101 @@
+@font-face {
+	font-family: "bold-cool";
+	src: url("VtksBoldandcool-2Vow.ttf");
+}
+
+@font-face {
+	font-family: "waukegan";
+	src: url("WaukeganLdo-ax19.ttf");
+}
+
+html * {
+	font-family: "waukegan";
+}
+
+:focus {
+	outline: dotted red;
+}
+
+body {
+	margin: 0 auto;
+	text-align: center;
+	background: #267DA9;
+	padding: 2em;
+	font-family: "waukegan";
+}
+
+.main-title {
+	font-family: "bold-cool";
+	font-size: 12em;
+}
+
+button {
+	margin: 1em auto;
+	padding: 0 1em;
+	display: block;
+	font-size: 2.5em;
+}
+
+form button {
+	background: #7DA826;
+	border-top-color: #99A87D;
+	border-left-color: #99A87D;
+	border-bottom-color: #537019;
+	border-right-color: #537019;
+}
+
+form button:hover {
+	outline: none;
+}
+
+form button:active {
+	outline: none;
+	color: #7DA826;
+	background: #29380C;
+	border-bottom-color: #99A87D;
+	border-right-color: #99A87D;
+	border-top-color: #537019;
+	border-left-color: #537019;
+}
+
+.torpedo-button {
+	width: 480px;
+	height: 90px;
+	padding: 0 1em 0 0;
+	background: center no-repeat url("torpeda.svg");
+	border: none;
+}
+
+.torpedo-button:hover {
+	border: solid black;
+}
+
+.torpedo-button:focus {
+	border: solid black;
+	outline: none;
+}
+
+.torpedo-button:active {
+	background: center no-repeat url("torpeda-ciemna.svg");
+}
+
+form {
+	margin: 3em auto;
+	display: grid;
+	grid-template-columns: 1fr 3fr;
+	gap: 10px;
+	width: 30%;
+	/*background: #bdbaae;*/
+	/*background: #92A1A8;*/
+	background: #9CA4A8;
+}
+
+label {
+	margin: 0 0.5em;
+	font-size: 2em;
+}
+
+input {
+	margin: 0 0.5em;
+	font-size: 2em;
+}
