@@ -1,4 +1,5 @@
 use crate::{
+    crypto::keys::ArkKeys,
     gui::{GuiReceiver, GuiSender},
     utils::{log::Log, result::Res},
 };
@@ -20,6 +21,7 @@ pub struct GameContext {
     pub gui_sender: GuiSender,
     pub net_receiver: NetReceiver,
     pub net_sender: NetSender,
+    pub keys: ArkKeys,
 }
 
 impl GameContext {

@@ -134,7 +134,7 @@ mod tests {
             hash: hash_result.into(),
         };
 
-        let (vk, pk) = read_keys(get_print_logger());
+        let (vk, pk) = read_keys(get_print_logger()).unwrap();
 
         let now = std::time::Instant::now();
         let mut rng: StdRng = StdRng::seed_from_u64(1);
@@ -639,7 +639,7 @@ mod tests {
             hash: hash_result.into(),
         };
 
-        let (vk, pk) = read_keys(get_print_logger());
+        let (vk, pk) = read_keys(get_print_logger()).unwrap();
 
         let mut rng: StdRng = StdRng::seed_from_u64(1);
         let proof: ark_groth16::Proof<ark_ec::bls12::Bls12<ark_bls12_381::Config>> =

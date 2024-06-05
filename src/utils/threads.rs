@@ -5,18 +5,17 @@ use futures::{
     pin_mut, Future,
 };
 
-use super::{log::Log, result::Res};
+use super::result::Res;
 
-pub async fn spawn_thread_async<F, T, R>(f: F, logger: R) -> Res<T>
+pub async fn spawn_thread_async<F, T>(f: F) -> Res<T>
 where
-    R: Log + Send + 'static,
-    F: FnOnce(R) -> T + Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
     T: Send + 'static,
 {
     let (sender, receiver) = async_channel::unbounded::<T>();
 
     let _ = thread::spawn(move || {
-        sender.send_blocking(f(logger)).unwrap();
+        sender.send_blocking(f()).unwrap();
     });
 
     Ok(receiver.recv().await?)

@@ -2,6 +2,7 @@ use async_channel::Sender;
 use futures::future::Either;
 
 use crate::{
+    crypto::keys::ArkKeys,
     gui::{GuiInput, GuiMessage, GuiReceiver, GuiSender},
     net::{connection::Endpoint, message::Message},
     utils::{
@@ -25,6 +26,7 @@ async fn enter_lobby(
     gui_sender: &mut GuiSender,
     endpoint: Endpoint<GameMessage>,
     player: Player,
+    keys: ArkKeys,
 ) -> Res<()> {
     let (f, net_sender, net_receiver) = endpoint.as_channel_pair();
 
@@ -63,6 +65,7 @@ async fn enter_lobby(
                     net_receiver,
                     net_sender: net_sender_clone,
                     player,
+                    keys: keys.clone(),
                 }
                 .game_loop()
                 .await?;
@@ -83,6 +86,8 @@ pub async fn run_logic_async(
     gui_receiver: &mut GuiReceiver,
     gui_sender: &mut GuiSender,
 ) -> Res<()> {
+    let keys = ArkKeys::load(gui_sender.clone().into());
+
     loop {
         gui_sender.send(GuiMessage::MainScreen).await?;
 
@@ -108,7 +113,14 @@ pub async fn run_logic_async(
                 )
                 .await
                 {
-                    enter_lobby(gui_receiver, gui_sender, endpoint, Player::Host).await?;
+                    enter_lobby(
+                        gui_receiver,
+                        gui_sender,
+                        endpoint,
+                        Player::Host,
+                        keys.clone(),
+                    )
+                    .await?;
                 }
             }
             crate::gui::GuiInput::JoinGame { addr, passwd } => {
@@ -132,7 +144,14 @@ pub async fn run_logic_async(
                 )
                 .await
                 {
-                    enter_lobby(gui_receiver, gui_sender, endpoint, Player::Client).await?;
+                    enter_lobby(
+                        gui_receiver,
+                        gui_sender,
+                        endpoint,
+                        Player::Client,
+                        keys.clone(),
+                    )
+                    .await?;
                 }
             }
             GuiInput::Esc => {

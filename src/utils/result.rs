@@ -1,9 +1,10 @@
 use std::result;
 
 use ark_relations::r1cs::SynthesisError;
+use ark_serialize::SerializationError;
 use async_std::io;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Er {
     pub message: String,
 }
@@ -13,7 +14,7 @@ pub type Res<T> = result::Result<T, Er>;
 impl From<io::Error> for Er {
     fn from(value: io::Error) -> Self {
         Er {
-            message: format!("Connection error: {}", value),
+            message: format!("IO error: {}", value),
         }
     }
 }
@@ -46,6 +47,14 @@ impl From<SynthesisError> for Er {
     fn from(value: SynthesisError) -> Self {
         Er {
             message: format!("Synthesis error: {}", value),
+        }
+    }
+}
+
+impl From<SerializationError> for Er {
+    fn from(value: SerializationError) -> Self {
+        Er {
+            message: format!("Serialization error: {}", value),
         }
     }
 }

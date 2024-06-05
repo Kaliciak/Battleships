@@ -1,12 +1,12 @@
 use futures::join;
 
 use crate::{
-    crypto::proofs::BoardCorrectnessProof,
+    crypto::{keys::ArkKeys, proofs::BoardCorrectnessProof},
     gui::{GuiInput, GuiMessage, GuiReceiver, GuiSender},
     model::IncompleteBoard,
     net::message::Message,
     utils::{
-        log::Log,
+        log::{Log, Logger},
         result::{Er, Res},
         threads::spawn_thread_async,
     },
@@ -46,16 +46,16 @@ async fn build_and_prove_board(
     gui_receiver: &mut GuiReceiver,
     gui_sender: GuiSender,
     net_sender: NetSender,
+    keys: ArkKeys,
 ) -> Res<BoardCircuit> {
     let board = build_board(gui_receiver, gui_sender.clone()).await?;
 
     gui_sender.log_message("Generating board correctness proof. This can take a while...")?;
 
-    let (proof, circ) = spawn_thread_async(
-        move |logger| BoardCorrectnessProof::create(board, logger.into()),
-        gui_sender.clone(),
-    )
-    .await??;
+    let logger: Logger = gui_sender.clone().into();
+    let (proof, circ) =
+        spawn_thread_async(move || BoardCorrectnessProof::create(board, logger, keys))
+            .await??;
 
     gui_sender.log_message(&format!(
         "Successfully generated board correctness proof. Salt: {:?} Hash: {:?}",
@@ -74,9 +74,10 @@ async fn build_and_prove_board(
 }
 
 /// Receive and verify other player's proof
-async fn receive_board_proof(
+async fn receive_and_verify_board_proof(
     net_receiver: &mut NetReceiver,
     gui_sender: &mut GuiSender,
+    keys: ArkKeys,
 ) -> Res<[u8; 32]> {
     loop {
         if let Message::Value(GameMessage::BoardIsCorrect(mut proof, hash)) =
@@ -88,12 +89,7 @@ async fn receive_board_proof(
             ))?;
 
             let hash_clone = hash;
-            if spawn_thread_async(
-                move |logger| proof.is_correct(hash_clone, logger.into()),
-                gui_sender.clone(),
-            )
-            .await??
-            {
+            if spawn_thread_async(move || proof.is_correct(hash_clone, keys)).await?? {
                 gui_sender.log_message("Received proof is correct!")?;
                 return Ok(hash);
             } else {
@@ -114,8 +110,13 @@ pub async fn initialize_boards(game_context: &mut GameContext) -> Res<(BoardCirc
             &mut game_context.gui_receiver,
             game_context.gui_sender.clone(),
             game_context.net_sender.clone(),
+            game_context.keys.clone()
         ),
-        receive_board_proof(&mut game_context.net_receiver, &mut game_context.gui_sender)
+        receive_and_verify_board_proof(
+            &mut game_context.net_receiver,
+            &mut game_context.gui_sender,
+            game_context.keys.clone()
+        )
     ) {
         Ok((board, hash))
     } else {

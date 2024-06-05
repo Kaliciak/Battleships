@@ -20,7 +20,7 @@ use serde::{
 };
 use sha2::{Digest, Sha256};
 
-use super::keys::read_keys;
+use super::keys::ArkKeys;
 
 /// Proof that the sender has properly constructed game board
 #[derive(Debug)]
@@ -60,7 +60,7 @@ impl<'de> Deserialize<'de> for BoardCorrectnessProof {
 }
 
 impl BoardCorrectnessProof {
-    pub fn create(board: Board, logger: Logger) -> Res<(Self, BoardCircuit)> {
+    pub fn create(board: Board, logger: Logger, mut keys: ArkKeys) -> Res<(Self, BoardCircuit)> {
         let salt = [1; 32];
         let ships = board.ships;
 
@@ -81,19 +81,19 @@ impl BoardCorrectnessProof {
             hash: hash_result.into(),
         };
 
-        let (_, pk) = read_keys(logger.clone());
+        let (_, pk) = &*(keys.acquire()?);
 
         let now = std::time::Instant::now();
         let mut rng: StdRng = StdRng::seed_from_u64(1);
         let proof: ark_groth16::Proof<ark_ec::bls12::Bls12<ark_bls12_381::Config>> =
-            Groth16::<_, LibsnarkReduction>::prove(&pk, real_circuit, &mut rng)?;
+            Groth16::<_, LibsnarkReduction>::prove(pk, real_circuit, &mut rng)?;
         let elapsed = now.elapsed();
         logger.log_message(&format!("Proof generated. Time: {:.2?}", elapsed))?;
 
         Ok((BoardCorrectnessProof(proof), real_circuit))
     }
-    pub fn is_correct(&mut self, hash: [u8; 32], logger: Logger) -> Res<bool> {
-        let (vk, _) = read_keys(logger.clone());
+    pub fn is_correct(&mut self, hash: [u8; 32], mut keys: ArkKeys) -> Res<bool> {
+        let (vk, _) = &*(keys.acquire()?);
         let mut input = [CircuitField::zero(); 8 * 32];
         for i in 0..32 {
             for j in 0..8 {
@@ -103,7 +103,7 @@ impl BoardCorrectnessProof {
             }
         }
         Ok(Groth16::<_, LibsnarkReduction>::verify(
-            &vk, &input, &self.0,
+            vk, &input, &self.0,
         )?)
     }
 }

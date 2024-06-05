@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use super::result::Res;
 
@@ -8,7 +8,7 @@ pub trait Log {
 
 #[derive(Clone)]
 pub struct Logger {
-    pub(crate) log: Rc<dyn Log>,
+    pub(crate) log: Arc<dyn Log + Send + Sync>,
 }
 
 impl Log for Logger {
@@ -18,8 +18,8 @@ impl Log for Logger {
 }
 
 impl Logger {
-    pub fn new(l: impl Log + 'static) -> Self {
-        Self { log: Rc::new(l) }
+    pub fn new(l: impl Log + Send + Sync + 'static) -> Self {
+        Self { log: Arc::new(l) }
     }
 }
 
