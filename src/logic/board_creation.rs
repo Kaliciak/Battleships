@@ -49,13 +49,13 @@ async fn build_and_prove_board(
     keys: ArkKeys,
 ) -> Res<BoardCircuit> {
     let board = build_board(gui_receiver, gui_sender.clone()).await?;
+    // let board = SAMPLE_BOARD;
 
     gui_sender.log_message("Generating board correctness proof. This can take a while...")?;
 
     let logger: Logger = gui_sender.clone().into();
     let (proof, circ) =
-        spawn_thread_async(move || BoardCorrectnessProof::create(board, logger, keys))
-            .await??;
+        spawn_thread_async(move || BoardCorrectnessProof::create(board, logger, keys)).await??;
 
     gui_sender.log_message(&format!(
         "Successfully generated board correctness proof. Salt: {:?} Hash: {:?}",
@@ -84,7 +84,7 @@ async fn receive_and_verify_board_proof(
             net_receiver.get().await?
         {
             gui_sender.log_message(&format!(
-                "Received proof from the other player. Hash {:?}.\nVerivying received proof...",
+                "Received board correctness proof from the other player. Hash {:?}.\nVerifying received proof...",
                 hash
             ))?;
 

@@ -4,10 +4,11 @@ use async_channel::Sender;
 use async_std::{
     io::{ReadExt, WriteExt},
     net::{TcpListener, TcpStream},
+    task::{self, JoinHandle},
 };
 use futures::{
     future::{select, Either},
-    pin_mut, Future,
+    pin_mut,
 };
 use serde::{Deserialize, Serialize};
 
@@ -19,14 +20,14 @@ use crate::utils::{
 
 use super::message::Message;
 
-pub struct Endpoint<T: Serialize + for<'a> Deserialize<'a>> {
+pub struct Endpoint<T: Serialize + for<'a> Deserialize<'a> + Send + 'static + Sync> {
     stream: TcpStream,
     pub second_addr: String,
     pd: PhantomData<T>,
     logger: Logger,
 }
 
-impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
+impl<T: Serialize + for<'a> Deserialize<'a> + Send + 'static + Sync> Endpoint<T> {
     pub async fn send(&mut self, message: &Message<T>) -> Res<()> {
         let to_send = serde_json::to_vec(message).unwrap();
         let length = (to_send.len() as u32).to_be_bytes();
@@ -129,11 +130,11 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
     pub fn as_channel_pair(
         self,
     ) -> (
-        impl Future<Output = Res<()>>,
         Sender<Message<T>>,
         AsyncReceiver<Message<T>>,
+        JoinHandle<Res<()>>,
     ) {
-        async fn receive_loop<T: Serialize + for<'a> Deserialize<'a>>(
+        async fn receive_loop<T: Serialize + for<'a> Deserialize<'a> + Send + 'static + Sync>(
             mut endpoint: Endpoint<T>,
             to_send_receiver: AsyncReceiver<Message<T>>,
             received_sender: Sender<Message<T>>,
@@ -164,10 +165,7 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
 
         let (s_output, r_output) = async_channel::unbounded::<Message<T>>();
         let (s_input, r_input) = async_channel::unbounded();
-        (
-            receive_loop(self, AsyncReceiver(r_input), s_output),
-            s_input,
-            AsyncReceiver(r_output),
-        )
+        let task = task::spawn(receive_loop(self, AsyncReceiver(r_input), s_output));
+        (s_input, AsyncReceiver(r_output), task)
     }
 }

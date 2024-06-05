@@ -1,11 +1,12 @@
 use async_channel::{unbounded, Receiver, Sender};
-use futures::{pin_mut, select, Future, FutureExt};
+use async_std::task::{self, JoinHandle};
+use futures::Future;
 
-use super::result::Res;
+use super::{result::Res, threads::parallel};
 
-pub struct AsyncReceiver<T>(pub Receiver<T>);
+pub struct AsyncReceiver<T: Send + 'static>(pub Receiver<T>);
 
-impl<T> AsyncReceiver<T> {
+impl<T: Send + 'static> AsyncReceiver<T> {
     pub async fn get(&self) -> Result<T, async_channel::RecvError> {
         self.0.recv().await
     }
@@ -19,22 +20,45 @@ impl<T> AsyncReceiver<T> {
         }
     }
 
-    pub async fn with_buffer<R: Future<Output = Res<()>>, Q: Future<Output = Res<()>>, P>(
-        &mut self,
-        cons: impl Fn(T, Sender<P>) -> R,
-        callback: impl FnOnce(AsyncReceiver<P>) -> Q,
-    ) -> Res<()> {
+    pub fn into_bufferred<P, Q, R>(
+        mut self,
+        cons: R,
+    ) -> (AsyncReceiver<P>, JoinHandle<Self>, Reclaim)
+    where
+        P: Send + 'static,
+        Q: Future<Output = Res<()>> + Send + 'static,
+        R: Fn(T, Sender<P>) -> Q + Send + Sync + 'static,
+    {
         let (sender, receiver) = unbounded();
-        let loop_fut = self
-            .consume_in_loop(move |m| cons(m, sender.clone()))
-            .fuse();
-        let callback_fut = callback(AsyncReceiver(receiver)).fuse();
+        let (break_sender, break_receiver) = unbounded();
+        let buffer_loop = task::spawn(async move {
+            let _ = parallel(
+                self.consume_in_loop(move |m| cons(m, sender.clone())),
+                async move {
+                    let _ = break_receiver.recv().await;
+                    println!("Twój stary!");
+                    Ok(())
+                },
+            )
+            .await;
+            self
+        });
+        (
+            AsyncReceiver(receiver),
+            buffer_loop,
+            Reclaim {
+                sender: break_sender,
+            },
+        )
+    }
+}
 
-        pin_mut!(loop_fut, callback_fut);
+pub struct Reclaim {
+    sender: Sender<()>,
+}
 
-        select! {
-            v = loop_fut => v,
-            v = callback_fut => v
-        }
+impl Reclaim {
+    pub async fn ask(&self) {
+        let _ = self.sender.send(()).await;
     }
 }

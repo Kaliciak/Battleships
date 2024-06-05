@@ -116,7 +116,7 @@ pub fn run_main_loop_with_cli() {
 
     let (reader, writer) = Readline::new("> ".to_string()).unwrap();
 
-    let (mut s_input, mut r_input) = async_channel::unbounded::<GuiMessage>();
+    let (s_input, mut r_input) = async_channel::unbounded::<GuiMessage>();
     let (s_output, r_output) = async_channel::unbounded::<GuiInput>();
 
     async fn get_input_from(input: &mut Receiver<GuiMessage>) -> Res<GuiMessage> {
@@ -148,7 +148,7 @@ pub fn run_main_loop_with_cli() {
 
     block_on(parallel::<(), ()>(
         f,
-        run_logic_async(&mut AsyncReceiver(r_output), &mut s_input),
+        run_logic_async(AsyncReceiver(r_output), s_input),
     ))
     .unwrap();
 }
