@@ -1,5 +1,6 @@
 use std::result;
 
+use ark_relations::r1cs::SynthesisError;
 use async_std::io;
 
 #[derive(Debug)]
@@ -28,7 +29,7 @@ impl From<serde_json::Error> for Er {
 impl From<async_channel::RecvError> for Er {
     fn from(value: async_channel::RecvError) -> Self {
         Er {
-            message: value.to_string(),
+            message: format!("Channel error: {}", value),
         }
     }
 }
@@ -36,7 +37,15 @@ impl From<async_channel::RecvError> for Er {
 impl<T> From<async_channel::SendError<T>> for Er {
     fn from(value: async_channel::SendError<T>) -> Self {
         Er {
-            message: value.to_string(),
+            message: format!("Channel error: {}", value),
+        }
+    }
+}
+
+impl From<SynthesisError> for Er {
+    fn from(value: SynthesisError) -> Self {
+        Er {
+            message: format!("Synthesis error: {}", value),
         }
     }
 }

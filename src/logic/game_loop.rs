@@ -27,7 +27,7 @@ impl GameContext {
         self.gui_sender.send(crate::gui::GuiMessage::Lobby).await?;
         initialize_boards(self).await?;
         self.gui_sender
-            .log_message("Boards has been successfully initialized!");
+            .log_message("Boards has been successfully initialized!")?;
         Ok(())
     }
 }

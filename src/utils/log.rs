@@ -1,33 +1,34 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
+
+use super::result::Res;
 
 pub trait Log {
-    fn log_message(&mut self, msg: &str);
+    fn log_message(&self, msg: &str) -> Res<()>;
 }
 
 #[derive(Clone)]
 pub struct Logger {
-    pub(crate) log: Rc<RefCell<dyn Log>>,
+    pub(crate) log: Rc<dyn Log>,
 }
 
 impl Log for Logger {
-    fn log_message(&mut self, msg: &str) {
-        self.log.borrow_mut().log_message(msg)
+    fn log_message(&self, msg: &str) -> Res<()> {
+        self.log.log_message(msg)
     }
 }
 
 impl Logger {
     pub fn new(l: impl Log + 'static) -> Self {
-        Self {
-            log: Rc::new(RefCell::new(l)),
-        }
+        Self { log: Rc::new(l) }
     }
 }
 
 struct PrintLogger {}
 
 impl Log for PrintLogger {
-    fn log_message(&mut self, msg: &str) {
+    fn log_message(&self, msg: &str) -> Res<()> {
         println!("{}", msg);
+        Ok(())
     }
 }
 

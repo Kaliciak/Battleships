@@ -20,7 +20,7 @@ use super::{
 };
 
 /// Build a correct board according to the user inputs
-async fn build_board(gui_receiver: &mut GuiReceiver, mut gui_sender: GuiSender) -> Res<Board> {
+async fn build_board(gui_receiver: &mut GuiReceiver, gui_sender: GuiSender) -> Res<Board> {
     let mut inc_board = IncompleteBoard::new();
     while inc_board.0.len() < 15 {
         gui_sender
@@ -29,38 +29,38 @@ async fn build_board(gui_receiver: &mut GuiReceiver, mut gui_sender: GuiSender) 
 
         if let GuiInput::PutShip(ship) = gui_receiver.get().await? {
             if !inc_board.can_be_extended_with(ship) {
-                gui_sender.log_message("Cannot extend the board with this ship");
+                gui_sender.log_message("Cannot extend the board with this ship")?;
             } else {
-                gui_sender.log_message("Ship successfully added");
+                gui_sender.log_message("Ship successfully added")?;
                 inc_board.extend(ship);
             }
         }
     }
 
-    gui_sender.log_message("Board has been successfully build!");
+    gui_sender.log_message("Board has been successfully build!")?;
     Ok(inc_board.build_board())
 }
 
 /// Build board, generate proof and send it to the other player
 async fn build_and_prove_board(
     gui_receiver: &mut GuiReceiver,
-    mut gui_sender: GuiSender,
+    gui_sender: GuiSender,
     net_sender: NetSender,
 ) -> Res<BoardCircuit> {
     let board = build_board(gui_receiver, gui_sender.clone()).await?;
 
-    gui_sender.log_message("Generating board correctness proof. This can take a while...");
+    gui_sender.log_message("Generating board correctness proof. This can take a while...")?;
 
     let (proof, circ) = spawn_thread_async(
         move |logger| BoardCorrectnessProof::create(board, logger.into()),
         gui_sender.clone(),
     )
-    .await?;
+    .await??;
 
     gui_sender.log_message(&format!(
         "Successfully generated board correctness proof. Salt: {:?} Hash: {:?}",
         circ.salt, circ.hash
-    ));
+    ))?;
 
     net_sender
         .send(Message::Value(GameMessage::BoardIsCorrect(
@@ -68,7 +68,7 @@ async fn build_and_prove_board(
         )))
         .await?;
 
-    gui_sender.log_message("Proof has been sent to the other player.");
+    gui_sender.log_message("Proof has been sent to the other player.")?;
 
     Ok(circ)
 }
@@ -85,19 +85,19 @@ async fn receive_board_proof(
             gui_sender.log_message(&format!(
                 "Received proof from the other player. Hash {:?}.\nVerivying received proof...",
                 hash
-            ));
+            ))?;
 
             let hash_clone = hash;
             if spawn_thread_async(
                 move |logger| proof.is_correct(hash_clone, logger.into()),
                 gui_sender.clone(),
             )
-            .await?
+            .await??
             {
-                gui_sender.log_message("Received proof is correct!");
+                gui_sender.log_message("Received proof is correct!")?;
                 return Ok(hash);
             } else {
-                gui_sender.log_message("Invalid proof");
+                gui_sender.log_message("Invalid proof")?;
                 return Err(Er {
                     message: "Invalid proof".to_owned(),
                 });

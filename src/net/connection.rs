@@ -49,29 +49,25 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
         match res {
             Message::Info { sender, info } => {
                 self.logger
-                    .log_message(&format!("{}|  {}> {}", self.second_addr, sender, info));
+                    .log_message(&format!("{}|  {}> {}", self.second_addr, sender, info))?;
                 Ok(Message::Info { sender, info })
             }
             Message::Error { sender, info } => {
                 self.logger
-                    .log_message(&format!("{}|  {}!!!> {}", self.second_addr, sender, info));
+                    .log_message(&format!("{}|  {}!!!> {}", self.second_addr, sender, info))?;
                 Err(Er { message: info })
             }
             a => Ok(a),
         }
     }
 
-    pub async fn accept_incoming_connection(
-        addr: &str,
-        passwd: &str,
-        mut logger: Logger,
-    ) -> Res<Self> {
-        logger.log_message(&format!("Listening on {}...", addr));
+    pub async fn accept_incoming_connection(addr: &str, passwd: &str, logger: Logger) -> Res<Self> {
+        logger.log_message(&format!("Listening on {}...", addr))?;
         let listener = TcpListener::bind(addr).await?;
 
         loop {
             let (stream, second_addr) = listener.accept().await?;
-            logger.log_message(&format!("Received connection from {}", second_addr));
+            logger.log_message(&format!("Received connection from {}", second_addr))?;
             let mut endpoint = Endpoint::<T> {
                 stream,
                 second_addr: second_addr.to_string(),
@@ -79,10 +75,10 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
                 logger: logger.clone(),
             };
 
-            logger.log_message("Waiting for password...");
+            logger.log_message("Waiting for password...")?;
             if let Message::Info { sender: _, info } = endpoint.receive().await? {
                 if info == passwd {
-                    logger.log_message("Correct password");
+                    logger.log_message("Correct password")?;
                     endpoint
                         .send(&Message::Info {
                             sender: "HOST".to_owned(),
@@ -90,7 +86,7 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
                         })
                         .await?;
                 } else {
-                    logger.log_message("Incorrect password, refusing connection.");
+                    logger.log_message("Incorrect password, refusing connection.")?;
                     endpoint
                         .send(&Message::Error {
                             sender: "HOST".to_owned(),
@@ -105,8 +101,8 @@ impl<T: Serialize + for<'a> Deserialize<'a>> Endpoint<T> {
         }
     }
 
-    pub async fn create_connection_to(addr: &str, passwd: &str, mut logger: Logger) -> Res<Self> {
-        logger.log_message(&format!("Connecting to {}...", addr));
+    pub async fn create_connection_to(addr: &str, passwd: &str, logger: Logger) -> Res<Self> {
+        logger.log_message(&format!("Connecting to {}...", addr))?;
         let stream = TcpStream::connect(addr).await?;
         let mut endpoint = Endpoint {
             second_addr: stream.local_addr()?.to_string().to_owned(),

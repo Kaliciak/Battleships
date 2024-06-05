@@ -5,6 +5,7 @@ use crate::{
     utils::{
         async_receiver::AsyncReceiver,
         log::{Log, Logger},
+        result::Res,
     },
     Ship,
 };
@@ -13,8 +14,9 @@ pub type GuiSender = Sender<GuiMessage>;
 pub type GuiReceiver = AsyncReceiver<GuiInput>;
 
 impl Log for GuiSender {
-    fn log_message(&mut self, msg: &str) {
-        self.send_blocking(GuiMessage::Log(msg.to_owned())).unwrap();
+    fn log_message(&self, msg: &str) -> Res<()> {
+        self.send_blocking(GuiMessage::Log(msg.to_owned()))?;
+        Ok(())
     }
 }
 

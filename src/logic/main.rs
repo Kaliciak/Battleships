@@ -51,7 +51,7 @@ async fn enter_lobby(
         }
     }
     let net_sender_clone = net_sender.clone();
-    let mut gui_sender_clone = gui_sender.clone();
+    let gui_sender_clone = gui_sender.clone();
     if let Err(e) = parallel(
         f,
         gui_receiver.with_buffer(
@@ -72,7 +72,7 @@ async fn enter_lobby(
     )
     .await
     {
-        gui_sender_clone.log_message(&e.message);
+        gui_sender_clone.log_message(&e.message)?;
     }
 
     Ok(())

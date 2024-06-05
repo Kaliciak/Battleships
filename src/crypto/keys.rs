@@ -7,7 +7,7 @@ use ark_serialize::CanonicalDeserialize;
 
 use crate::utils::log::{Log, Logger};
 
-pub fn read_keys(mut logger: Logger) -> (VerifyingKey<Bls12<Config>>, ProvingKey<Bls12<Config>>) {
+pub fn read_keys(logger: Logger) -> (VerifyingKey<Bls12<Config>>, ProvingKey<Bls12<Config>>) {
     let now = std::time::Instant::now();
 
     let vk_file = File::open("keys/vk_file.key").unwrap();

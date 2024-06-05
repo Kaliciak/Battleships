@@ -1,6 +1,9 @@
 use crate::{
     board_circuit::CircuitField,
-    utils::log::{Log, Logger},
+    utils::{
+        log::{Log, Logger},
+        result::Res,
+    },
     Board, BoardCircuit,
 };
 use ark_groth16::{r1cs_to_qap::LibsnarkReduction, Groth16};
@@ -57,7 +60,7 @@ impl<'de> Deserialize<'de> for BoardCorrectnessProof {
 }
 
 impl BoardCorrectnessProof {
-    pub fn create(board: Board, mut logger: Logger) -> (Self, BoardCircuit) {
+    pub fn create(board: Board, logger: Logger) -> Res<(Self, BoardCircuit)> {
         let salt = [1; 32];
         let ships = board.ships;
 
@@ -83,13 +86,13 @@ impl BoardCorrectnessProof {
         let now = std::time::Instant::now();
         let mut rng: StdRng = StdRng::seed_from_u64(1);
         let proof: ark_groth16::Proof<ark_ec::bls12::Bls12<ark_bls12_381::Config>> =
-            Groth16::<_, LibsnarkReduction>::prove(&pk, real_circuit, &mut rng).unwrap();
+            Groth16::<_, LibsnarkReduction>::prove(&pk, real_circuit, &mut rng)?;
         let elapsed = now.elapsed();
-        logger.log_message(&format!("Proof generated. Time: {:.2?}", elapsed));
+        logger.log_message(&format!("Proof generated. Time: {:.2?}", elapsed))?;
 
-        (BoardCorrectnessProof(proof), real_circuit)
+        Ok((BoardCorrectnessProof(proof), real_circuit))
     }
-    pub fn is_correct(&mut self, hash: [u8; 32], logger: Logger) -> bool {
+    pub fn is_correct(&mut self, hash: [u8; 32], logger: Logger) -> Res<bool> {
         let (vk, _) = read_keys(logger.clone());
         let mut input = [CircuitField::zero(); 8 * 32];
         for i in 0..32 {
@@ -99,6 +102,8 @@ impl BoardCorrectnessProof {
                 }
             }
         }
-        Groth16::<_, LibsnarkReduction>::verify(&vk, &input, &self.0).unwrap()
+        Ok(Groth16::<_, LibsnarkReduction>::verify(
+            &vk, &input, &self.0,
+        )?)
     }
 }

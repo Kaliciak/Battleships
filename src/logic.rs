@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{cell::RefCell, io::Write};
 
 use async_channel::Receiver;
 use async_std::task::block_on;
@@ -27,14 +27,15 @@ pub enum GameMessage {
 pub fn run_main_loop_with_cli() {
     struct Cli {
         reader: Readline,
-        writer: SharedWriter,
+        writer: RefCell<SharedWriter>,
         state: GuiMessage,
     }
     impl Log for Cli {
-        fn log_message(&mut self, msg: &str) {
+        fn log_message(&self, msg: &str) -> Res<()> {
             self.writer
-                .write_all(format!("{}\n", msg).as_bytes())
-                .expect("Error while logging");
+                .borrow_mut()
+                .write_all(format!("{}\n", msg).as_bytes())?;
+            Ok(())
         }
     }
 
@@ -47,7 +48,7 @@ pub fn run_main_loop_with_cli() {
                         self.reader.add_history_entry(line.clone());
                         let words = line.split(' ').collect::<Vec<&str>>();
                         if words.len() < 3 {
-                            self.log_message("Invalid command");
+                            self.log_message("Invalid command")?;
                             continue;
                         }
                         if words[0] == "create" {
@@ -70,7 +71,7 @@ pub fn run_main_loop_with_cli() {
                         }
                         if words[0] == "put" {
                             if words.len() != 4 {
-                                self.log_message("Invalid command");
+                                self.log_message("Invalid command")?;
                                 continue;
                             }
                             if let GuiMessage::BoardConstruction(inc_board) = &self.state {
@@ -88,7 +89,7 @@ pub fn run_main_loop_with_cli() {
                                 }));
                             }
                         }
-                        self.log_message("Invalid command");
+                        self.log_message("Invalid command")?;
                     }
                     rustyline_async::ReadlineEvent::Eof => {
                         return Ok(gui::GuiInput::Exit);
@@ -100,13 +101,13 @@ pub fn run_main_loop_with_cli() {
         fn draw(&mut self) {
             match &self.state {
                 GuiMessage::MainScreen => {
-                    self.log_message("\n\nWitamy w grze w statki!\n\n   create address:port password => create game\n   join address:port password => join game\n   msg name info => send msg to the second player\n   Ctrl-C => Interrupt\n   Ctrl-D => Exit\n");
+                    self.log_message("\n\nWitamy w grze w statki!\n\n   create address:port password => create game\n   join address:port password => join game\n   msg name info => send msg to the second player\n   Ctrl-C => Interrupt\n   Ctrl-D => Exit\n").unwrap();
                 }
                 GuiMessage::Lobby => {
-                    self.log_message("\n\nLobby\n");
+                    self.log_message("\n\nLobby\n").unwrap();
                 }
                 GuiMessage::BoardConstruction(board) => {
-                    self.log_message(&format!("{:#?}", board));
+                    self.log_message(&format!("{:#?}", board)).unwrap();
                 }
                 _ => {}
             }
@@ -123,7 +124,7 @@ pub fn run_main_loop_with_cli() {
     }
     let mut cli = Cli {
         reader,
-        writer,
+        writer: RefCell::new(writer),
         state: GuiMessage::MainScreen,
     };
 
@@ -135,7 +136,7 @@ pub fn run_main_loop_with_cli() {
                 }
                 futures::future::Either::Right(state) => {
                     if let GuiMessage::Log(m) = state {
-                        cli.log_message(&m)
+                        cli.log_message(&m).unwrap();
                     } else {
                         cli.state = state;
                         cli.draw();
