@@ -36,28 +36,6 @@ button {
 	font-size: 2.5em;
 }
 
-form button {
-	background: #7DA826;
-	border-top-color: #99A87D;
-	border-left-color: #99A87D;
-	border-bottom-color: #537019;
-	border-right-color: #537019;
-}
-
-form button:hover {
-	outline: none;
-}
-
-form button:active {
-	outline: none;
-	color: #7DA826;
-	background: #29380C;
-	border-bottom-color: #99A87D;
-	border-right-color: #99A87D;
-	border-top-color: #537019;
-	border-left-color: #537019;
-}
-
 .torpedo-button {
 	width: 480px;
 	height: 90px;
@@ -79,15 +57,57 @@ form button:active {
 	background: center no-repeat url("torpeda-ciemna.svg");
 }
 
-form {
+.control-panel-form {
 	margin: 3em auto;
 	display: grid;
 	grid-template-columns: 1fr 3fr;
 	gap: 10px;
 	width: 30%;
-	/*background: #bdbaae;*/
-	/*background: #92A1A8;*/
 	background: #9CA4A8;
+}
+
+.control-panel-form .ok-button {
+	background: #7DA826;
+	border-top-color: #99A87D;
+	border-left-color: #99A87D;
+	border-bottom-color: #537019;
+	border-right-color: #537019;
+}
+
+.control-panel-form .ok-button:hover {
+	outline: none;
+}
+
+.control-panel-form .ok-button:active {
+	outline: none;
+	color: #7DA826;
+	background: #29380C;
+	border-bottom-color: #99A87D;
+	border-right-color: #99A87D;
+	border-top-color: #537019;
+	border-left-color: #537019;
+}
+
+.control-panel-form .abort-button {
+	background: #A8263C;
+	border-top-color: #A87D84;
+	border-left-color: #A87D84;
+	border-bottom-color: #701929;
+	border-right-color: #701929;
+}
+
+.control-panel-form .abort-button:hover {
+	outline: none;
+}
+
+.control-panel-form .abort-button:active {
+	outline: none;
+	color: #A8263C;
+	background: #380C14;
+	border-bottom-color: #A87D84;
+	border-right-color: #A87D84;
+	border-top-color: #701929;
+	border-left-color: #701929;
 }
 
 label {
