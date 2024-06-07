@@ -61,7 +61,7 @@ async fn build_and_prove_board(
     ))?;
 
     net_sender
-        .send(Message::Value(GameMessage::BoardIsCorrect(
+        .send(Message::Value(GameMessage::BoardDeclaration(
             proof, circ.hash,
         )))
         .await?;
@@ -78,7 +78,7 @@ async fn receive_and_verify_board_proof(
     keys: ArkKeys,
 ) -> Res<[u8; 32]> {
     loop {
-        if let Message::Value(GameMessage::BoardIsCorrect(mut proof, hash)) =
+        if let Message::Value(GameMessage::BoardDeclaration(mut proof, hash)) =
             net_receiver.get().await?
         {
             gui_sender.log_message(&format!(

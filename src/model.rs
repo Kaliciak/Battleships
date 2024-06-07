@@ -1,3 +1,6 @@
+use ark_std::iterable::Iterable;
+use serde::{Deserialize, Serialize};
+
 use crate::utils::ship_helpers::*;
 
 pub const SHIP_SIZES: [u8; 15] = [1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5];
@@ -10,7 +13,7 @@ pub enum Direction {
     Horizontal = 1,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum FieldState {
     // No ship on the field
     Empty = 0,
@@ -40,6 +43,20 @@ pub struct Board {
     pub ships: [Ship; 15],
 }
 
+impl Board {
+    pub fn get_field_state(&self, x: u8, y: u8) -> FieldState {
+        if self
+            .ships
+            .iter()
+            .any(|ship| overlaps(ship, Point(x as i8, y as i8)))
+        {
+            FieldState::Occupied
+        } else {
+            FieldState::Empty
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct IncompleteBoard(pub Vec<Ship>);
 
@@ -49,18 +66,24 @@ impl IncompleteBoard {
     }
 
     pub fn can_be_extended_with(&self, ship: Ship) -> bool {
-        if !in_board((ship.x, ship.y)) {
-            return false;
-        }
-        if !in_board(ship.direction.transpose(ship.x, ship.y, ship.size - 1)) {
-            return false;
-        }
+        let board_boundaries = ((1, 1), (11, 11));
 
+        let ship_rect: Rectangle = ship.into();
+
+        if !overlaps(board_boundaries, ship_rect.0)
+            || !overlaps(board_boundaries, ship_rect.1 + (-1, -1))
+        {
+            return false;
+        }
         if !ship.size == SHIP_SIZES[self.0.len()] {
             return false;
         }
 
-        if self.0.iter().any(|s| ships_collide(*s, ship)) {
+        if self
+            .0
+            .iter()
+            .any(|s| overlaps(*s, ship_rect + ((-1, -1), (1, 1))))
+        {
             return false;
         }
 

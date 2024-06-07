@@ -22,6 +22,7 @@ pub type CircuitField = Fr;
 use crate::circuit::commons::ShipVars;
 use crate::model::{Board, Direction, FieldState, Ship};
 
+use super::board_declaration_circuit::BoardDeclarationCircuit;
 use super::commons::{compute_hash, create_ship_vars};
 
 #[derive(Copy, Clone, Debug)]
@@ -32,6 +33,20 @@ pub struct FieldDeclarationCircuit {
     pub field_x: u8,
     pub field_y: u8,
     pub field_state: FieldState,
+}
+
+impl From<(BoardDeclarationCircuit, u8, u8)> for FieldDeclarationCircuit {
+    fn from((board_circ, field_x, field_y): (BoardDeclarationCircuit, u8, u8)) -> Self {
+        let field_state = board_circ.board.get_field_state(field_x, field_y);
+        FieldDeclarationCircuit {
+            board: board_circ.board,
+            salt: board_circ.salt,
+            hash: board_circ.hash,
+            field_x,
+            field_y,
+            field_state,
+        }
+    }
 }
 
 impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for FieldDeclarationCircuit {

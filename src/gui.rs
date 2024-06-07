@@ -1,6 +1,7 @@
 use async_channel::Sender;
 
 use crate::{
+    logic::GameState,
     model::{IncompleteBoard, Ship},
     utils::{
         async_receiver::AsyncReceiver,
@@ -31,6 +32,7 @@ pub enum GuiMessage {
     MainScreen,
     Lobby,
     BoardConstruction(IncompleteBoard),
+    PrintGameState(GameState),
 }
 
 /// Input received from the GUI
@@ -39,6 +41,7 @@ pub enum GuiInput {
     JoinGame { addr: String, passwd: String },
     SendMessage(String, String),
     PutShip(Ship),
+    Shoot(u8, u8),
     Esc,
     Exit,
 }

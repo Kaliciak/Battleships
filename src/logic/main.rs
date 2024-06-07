@@ -165,24 +165,20 @@ async fn enter_lobby(
     let game_loop_fuse = game_context.game_loop().fuse();
 
     pin_mut!(buffer_loop_task_fuse, game_loop_fuse, net_loop_task_fuse);
-    let mut main_loop_finished = false;
     loop {
         select! {
             receiver = buffer_loop_task_fuse => {
-                if !main_loop_finished {
-                    if let Err(e) = game_loop_fuse.await {
-                    gui_sender_clone.log_message(&format!("Error in the main loop: {}", e.message))?;
-                    }
-                }
                 return Ok(receiver);
             }
 
             r = game_loop_fuse => {
                 if let Err(e) = r {
                     gui_sender_clone.log_message(&format!("Error in the main loop: {}", e.message))?;
+                    reclaim.ask().await;
                 }
-                main_loop_finished = true;
-                reclaim.ask().await;
+                else {
+                    gui_sender_clone.log_message("The game ended. Interrupt to exit")?;
+                }
             }
 
             r = net_loop_task_fuse => {

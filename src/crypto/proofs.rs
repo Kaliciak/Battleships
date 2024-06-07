@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, usize};
+use std::{marker::PhantomData, ops, usize};
 
 use crate::{
     circuit::commons::CircuitField,
@@ -98,5 +98,14 @@ impl From<Vec<u8>> for PublicInput {
             }
         }
         PublicInput(input)
+    }
+}
+
+impl<T: Into<CircuitField>> ops::Add<T> for PublicInput {
+    type Output = PublicInput;
+
+    fn add(mut self, rhs: T) -> Self::Output {
+        self.0.push(rhs.into());
+        self
     }
 }
