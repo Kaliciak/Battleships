@@ -2,20 +2,27 @@ use crate::utils::ship_helpers::*;
 
 pub const SHIP_SIZES: [u8; 15] = [1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5];
 
-
 #[derive(Copy, Clone, Debug)]
 pub enum Direction {
     // downwards
-    VERTICAL = 0,
+    Vertical = 0,
     // to the right
-    HORIZONTAL = 1,
+    Horizontal = 1,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum FieldState {
+    // No ship on the field
+    Empty = 0,
+    // There is a ship occupying the field
+    Occupied = 1,
 }
 
 impl Direction {
     pub fn transpose(&self, x: u8, y: u8, size: u8) -> (u8, u8) {
         match self {
-            Direction::VERTICAL => (x, y + size),
-            Direction::HORIZONTAL => (x + size, y),
+            Direction::Vertical => (x, y + size),
+            Direction::Horizontal => (x + size, y),
         }
     }
 }
@@ -77,91 +84,91 @@ pub const SAMPLE_BOARD: Board = Board {
             x: 1,
             y: 1,
             size: 1,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 1,
             y: 3,
             size: 1,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 1,
             y: 5,
             size: 1,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 1,
             y: 7,
             size: 1,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 1,
             y: 9,
             size: 1,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 3,
             y: 1,
             size: 2,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 3,
             y: 4,
             size: 2,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 3,
             y: 7,
             size: 2,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 3,
             y: 10,
             size: 2,
-            direction: Direction::HORIZONTAL,
+            direction: Direction::Horizontal,
         },
         Ship {
             x: 5,
             y: 1,
             size: 3,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 5,
             y: 5,
             size: 3,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 6,
             y: 10,
             size: 3,
-            direction: Direction::HORIZONTAL,
+            direction: Direction::Horizontal,
         },
         Ship {
             x: 7,
             y: 1,
             size: 4,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 9,
             y: 1,
             size: 4,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
         Ship {
             x: 10,
             y: 6,
             size: 5,
-            direction: Direction::VERTICAL,
+            direction: Direction::Vertical,
         },
     ],
 };

@@ -1,12 +1,16 @@
+use std::{marker::PhantomData, usize};
+
 use crate::{
-    board_circuit::CircuitField,
+    circuit::commons::CircuitField,
     utils::{
         log::{Log, Logger},
         result::Res,
     },
-    Board, BoardCircuit,
 };
+use ark_bls12_381::FrConfig;
+use ark_ff::{Fp, MontBackend};
 use ark_groth16::{r1cs_to_qap::LibsnarkReduction, Groth16};
+use ark_relations::r1cs::ConstraintSynthesizer;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_snark::SNARK;
 use ark_std::{
@@ -18,17 +22,17 @@ use serde::{
     ser::{self},
     Deserialize, Serialize,
 };
-use sha2::{Digest, Sha256};
 
 use super::keys::ArkKeys;
 
 /// Proof that the sender has properly constructed game board
 #[derive(Debug)]
-pub struct BoardCorrectnessProof(
+pub struct CorrectnessProof<T>(
     pub ark_groth16::Proof<ark_ec::bls12::Bls12<ark_bls12_381::Config>>,
+    PhantomData<T>,
 );
 
-impl Serialize for BoardCorrectnessProof {
+impl<T> Serialize for CorrectnessProof<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -43,7 +47,7 @@ impl Serialize for BoardCorrectnessProof {
     }
 }
 
-impl<'de> Deserialize<'de> for BoardCorrectnessProof {
+impl<'de, T> Deserialize<'de> for CorrectnessProof<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -51,7 +55,7 @@ impl<'de> Deserialize<'de> for BoardCorrectnessProof {
         let v: Vec<u8> = Vec::<u8>::deserialize(deserializer)?;
         let x = ark_groth16::Proof::<ark_ec::bls12::Bls12::<ark_bls12_381::Config>>::deserialize_uncompressed_unchecked(&v[..]);
         match x {
-            Ok(proof) => Ok(BoardCorrectnessProof(proof)),
+            Ok(proof) => Ok(CorrectnessProof(proof, PhantomData)),
             Err(_) => Err(de::Error::custom(
                 "Error while deserializing board correctness proof...",
             )),
@@ -59,28 +63,8 @@ impl<'de> Deserialize<'de> for BoardCorrectnessProof {
     }
 }
 
-impl BoardCorrectnessProof {
-    pub fn create(board: Board, logger: Logger, mut keys: ArkKeys) -> Res<(Self, BoardCircuit)> {
-        let salt = [1; 32];
-        let ships = board.ships;
-
-        // create a Sha256 object
-        let mut hasher = Sha256::new();
-
-        ships
-            .iter()
-            .for_each(|ship| hasher.update([ship.x, ship.y, ship.size, ship.direction as u8]));
-        hasher.update(salt);
-
-        // read hash digest and consume hasher
-        let hash_result = hasher.finalize();
-
-        let real_circuit = BoardCircuit {
-            board: Board { ships },
-            salt,
-            hash: hash_result.into(),
-        };
-
+impl<T: ConstraintSynthesizer<CircuitField>> CorrectnessProof<T> {
+    pub fn create(real_circuit: T, logger: Logger, mut keys: ArkKeys) -> Res<Self> {
         let (_, pk) = &*(keys.acquire()?);
 
         let now = std::time::Instant::now();
@@ -90,20 +74,29 @@ impl BoardCorrectnessProof {
         let elapsed = now.elapsed();
         logger.log_message(&format!("Proof generated. Time: {:.2?}", elapsed))?;
 
-        Ok((BoardCorrectnessProof(proof), real_circuit))
+        Ok(CorrectnessProof(proof, PhantomData))
     }
-    pub fn is_correct(&mut self, hash: [u8; 32], mut keys: ArkKeys) -> Res<bool> {
+    pub fn is_correct(&mut self, input: PublicInput, mut keys: ArkKeys) -> Res<bool> {
         let (vk, _) = &*(keys.acquire()?);
-        let mut input = [CircuitField::zero(); 8 * 32];
+        Ok(Groth16::<_, LibsnarkReduction>::verify(
+            vk, &input.0, &self.0,
+        )?)
+    }
+}
+
+pub struct PublicInput(Vec<Fp<MontBackend<FrConfig, 4>, 4>>);
+
+impl From<Vec<u8>> for PublicInput {
+    fn from(value: Vec<u8>) -> Self {
+        let size: usize = value.len();
+        let mut input = vec![CircuitField::zero(); 8 * size];
         for i in 0..32 {
             for j in 0..8 {
-                if hash[i] >> j & 1 == 1 {
+                if value[i] >> j & 1 == 1 {
                     input[i * 8 + j] = CircuitField::one();
                 }
             }
         }
-        Ok(Groth16::<_, LibsnarkReduction>::verify(
-            vk, &input, &self.0,
-        )?)
+        PublicInput(input)
     }
 }

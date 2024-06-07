@@ -1,16 +1,14 @@
-use futures::join;
-
 use crate::{
-    crypto::{keys::ArkKeys, proofs::BoardCorrectnessProof},
+    circuit::board_declaration_circuit::BoardDeclarationCircuit,
+    crypto::{keys::ArkKeys, proofs::CorrectnessProof},
     gui::{GuiInput, GuiMessage, GuiReceiver, GuiSender},
-    model::IncompleteBoard,
+    model::{Board, IncompleteBoard},
     net::message::Message,
     utils::{
         log::{Log, Logger},
         result::{Er, Res},
-        threads::spawn_thread_async,
+        threads::{merge, spawn_thread_async},
     },
-    Board, BoardCircuit,
 };
 
 use super::{
@@ -47,15 +45,15 @@ async fn build_and_prove_board(
     gui_sender: GuiSender,
     net_sender: NetSender,
     keys: ArkKeys,
-) -> Res<BoardCircuit> {
-    let board = build_board(gui_receiver, gui_sender.clone()).await?;
+) -> Res<BoardDeclarationCircuit> {
+    let circ: BoardDeclarationCircuit = build_board(gui_receiver, gui_sender.clone()).await?.into();
+    // let circ: BoardDeclarationCircuit = SAMPLE_BOARD.into();
     // let board = SAMPLE_BOARD;
 
     gui_sender.log_message("Generating board correctness proof. This can take a while...")?;
 
     let logger: Logger = gui_sender.clone().into();
-    let (proof, circ) =
-        spawn_thread_async(move || BoardCorrectnessProof::create(board, logger, keys)).await??;
+    let proof = spawn_thread_async(move || CorrectnessProof::create(circ, logger, keys)).await??;
 
     gui_sender.log_message(&format!(
         "Successfully generated board correctness proof. Salt: {:?} Hash: {:?}",
@@ -88,8 +86,10 @@ async fn receive_and_verify_board_proof(
                 hash
             ))?;
 
-            let hash_clone = hash;
-            if spawn_thread_async(move || proof.is_correct(hash_clone, keys)).await?? {
+            let hash_clone = hash.to_vec();
+            if spawn_thread_async(move || proof.is_correct(hash_clone.to_vec().into(), keys))
+                .await??
+            {
                 gui_sender.log_message("Received proof is correct!")?;
                 return Ok(hash);
             } else {
@@ -104,20 +104,24 @@ async fn receive_and_verify_board_proof(
 
 /// Handle boards creation and verification.
 /// Returns constructed board and the hash of the board of the other player
-pub async fn initialize_boards(game_context: &mut GameContext) -> Res<(BoardCircuit, [u8; 32])> {
-    if let (Ok(board), Ok(hash)) = join!(
+pub async fn initialize_boards(
+    game_context: &mut GameContext,
+) -> Res<(BoardDeclarationCircuit, [u8; 32])> {
+    if let Ok((board, hash)) = merge(
         build_and_prove_board(
             &mut game_context.gui_receiver,
             game_context.gui_sender.clone(),
             game_context.net_sender.clone(),
-            game_context.keys.clone()
+            game_context.keys.board_declaration_keys.clone(),
         ),
         receive_and_verify_board_proof(
             &mut game_context.net_receiver,
             &mut game_context.gui_sender,
-            game_context.keys.clone()
-        )
-    ) {
+            game_context.keys.board_declaration_keys.clone(),
+        ),
+    )
+    .await
+    {
         Ok((board, hash))
     } else {
         Err(Er {

@@ -2,7 +2,7 @@ use async_channel::{unbounded, Receiver, Sender};
 use async_std::task::{self, JoinHandle};
 use futures::Future;
 
-use super::{result::Res, threads::parallel};
+use super::{result::Res, threads::select_first};
 
 pub struct AsyncReceiver<T: Send + 'static>(pub Receiver<T>);
 
@@ -32,11 +32,10 @@ impl<T: Send + 'static> AsyncReceiver<T> {
         let (sender, receiver) = unbounded();
         let (break_sender, break_receiver) = unbounded();
         let buffer_loop = task::spawn(async move {
-            let _ = parallel(
+            let _ = select_first(
                 self.consume_in_loop(move |m| cons(m, sender.clone())),
                 async move {
                     let _ = break_receiver.recv().await;
-                    println!("Twój stary!");
                     Ok(())
                 },
             )

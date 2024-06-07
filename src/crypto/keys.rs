@@ -23,14 +23,15 @@ pub struct ArkKeys {
 }
 
 impl ArkKeys {
-    pub fn load(logger: Logger) -> Self {
+    pub fn load(logger: Logger, path: &str) -> Self {
+        let path1 = path.to_owned();
         let keys1 = ArkKeys {
             mut_cond: Arc::new((Mutex::new(None), Condvar::new())),
         };
         let keys2 = keys1.clone();
 
         thread::spawn(move || {
-            let keys = read_keys(logger);
+            let keys = read_keys(logger, &path1);
             let mut l = keys2.mut_cond.0.lock().unwrap();
             *l = Some(match keys {
                 Ok(ks) => Ok(Arc::new(ks)),
@@ -56,19 +57,23 @@ impl ArkKeys {
     }
 }
 
-pub fn read_keys(logger: Logger) -> Res<(Vk, Pk)> {
+pub fn read_keys(logger: Logger, path: &str) -> Res<(Vk, Pk)> {
     let now = std::time::Instant::now();
 
-    let vk_file = File::open("keys/vk_file.key")?;
+    let vk_file = File::open(format!("{}/vk.bin", path))?;
     let vk = VerifyingKey::deserialize_uncompressed_unchecked(vk_file)?;
-    logger.log_message("vk deserialized")?;
+    logger.log_message(&format!("{}/vk.bin deserialized", path))?;
 
-    let pk_file = File::open("keys/pk_file.key")?;
+    let pk_file = File::open(format!("{}/pk.bin", path))?;
     let pk: ProvingKey<ark_ec::bls12::Bls12<ark_bls12_381::Config>> =
         ProvingKey::deserialize_uncompressed_unchecked(pk_file)?;
+    logger.log_message(&format!("{}/pk.bin deserialized", path))?;
 
     let elapsed = now.elapsed();
-    logger.log_message(&format!("Keys deserialized. Time: {:.2?}", elapsed))?;
+    logger.log_message(&format!(
+        "Keys at {} are loaded. Time: {:.2?}",
+        path, elapsed
+    ))?;
 
     Ok((vk, pk))
 }

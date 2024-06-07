@@ -1,4 +1,4 @@
-use crate::Ship;
+use crate::model::Ship;
 
 pub fn is_in_range(val: u8, begin_incl: u8, end_incl: u8) -> bool {
     begin_incl <= val && val <= end_incl

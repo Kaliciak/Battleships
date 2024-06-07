@@ -1,5 +1,4 @@
 use ark_bls12_381::Fr;
-use ark_crypto_primitives::crh::sha256::constraints::{DigestVar, Sha256Gadget};
 use ark_groth16::Groth16;
 use ark_r1cs_std::alloc::AllocVar;
 use ark_r1cs_std::boolean::Boolean;
@@ -8,39 +7,57 @@ use ark_r1cs_std::fields::fp::FpVar;
 use ark_r1cs_std::fields::FieldVar;
 use ark_r1cs_std::select::CondSelectGadget;
 use ark_r1cs_std::uint8::UInt8;
-use ark_r1cs_std::ToBytesGadget;
 use ark_relations::ns;
 use ark_relations::r1cs::{ConstraintSystemRef, Result};
 use ark_serialize::CanonicalSerialize;
 use ark_snark::CircuitSpecificSetupSNARK;
 use ark_std::rand::SeedableRng;
 use ark_std::{iterable::Iterable, rand::rngs::StdRng};
+use sha2::{Digest, Sha256};
+use std::cmp::Ordering;
 use std::fs::File;
 
 pub type Curve = ark_bls12_381::Bls12_381;
 pub type CircuitField = Fr;
 
+use crate::circuit::commons::ShipVars;
 use crate::model::{Board, Direction, Ship};
 
+use super::commons::SHIPS_SIZES;
+use super::commons::{compute_hash, create_ship_vars};
+
 #[derive(Copy, Clone, Debug)]
-pub struct BoardCircuit {
+pub struct BoardDeclarationCircuit {
     pub board: Board,
     pub salt: [u8; 32],
     pub hash: [u8; 32],
 }
 
-struct ShipVars {
-    pub x: FpVar<CircuitField>,
-    pub y: FpVar<CircuitField>,
-    pub size: FpVar<CircuitField>,
-    pub size_numerical: Option<usize>,
-    pub direction: FpVar<CircuitField>,
-    pub is_vertical: Boolean<CircuitField>,
+impl From<Board> for BoardDeclarationCircuit {
+    fn from(board: Board) -> Self {
+        let salt = rand::random::<[u8; 32]>();
+
+        // create a Sha256 object
+        let mut hasher = Sha256::new();
+
+        board
+            .ships
+            .iter()
+            .for_each(|ship| hasher.update([ship.x, ship.y, ship.size, ship.direction as u8]));
+        hasher.update(salt);
+
+        // read hash digest and consume hasher
+        let hash_result = hasher.finalize();
+
+        BoardDeclarationCircuit {
+            board,
+            salt,
+            hash: hash_result.into(),
+        }
+    }
 }
 
-const SHIPS_SIZES: [usize; 15] = [1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5];
-
-impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
+impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardDeclarationCircuit {
     fn generate_constraints(self, cs: ConstraintSystemRef<CircuitField>) -> Result<()> {
         // Generate needed constants
         // constans[i] -- constant representing i
@@ -68,22 +85,9 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
         //--------------------------
         // Check if hash is correct
 
-        let mut hash_gadget: Sha256Gadget<CircuitField> = Sha256Gadget::default();
-        // Hash every ship
-        ships_vars.iter().for_each(|ship_vars| {
-            hash_gadget
-                .update(&[
-                    cast_fp_var_to_uint8(&ship_vars.x).unwrap(),
-                    cast_fp_var_to_uint8(&ship_vars.y).unwrap(),
-                    cast_fp_var_to_uint8(&ship_vars.size).unwrap(),
-                    cast_fp_var_to_uint8(&ship_vars.direction).unwrap(),
-                ])
-                .unwrap()
-        });
-        // Add salt
-        hash_gadget.update(&salt_vars)?;
-        // Compute hash
-        let digest_var: DigestVar<CircuitField> = hash_gadget.finalize().unwrap();
+        // Compute the hash
+        let digest_var = compute_hash(&ships_vars, &salt_vars)?;
+
         // Compare the hashes
         hash_vars
             .iter()
@@ -94,33 +98,13 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
         // Check if the board is correct
 
         // Check if all values are from the correct range
-        for ship_index in 0..15 {
+        ships_vars.iter().for_each(|ship_vars| {
             // 1 <= x, y <= 10
-            FpVar::enforce_cmp(
-                &ships_vars[ship_index].x,
-                &FpVar::one(),
-                std::cmp::Ordering::Greater,
-                true,
-            )?;
-            FpVar::enforce_cmp(
-                &ships_vars[ship_index].x,
-                &ten,
-                std::cmp::Ordering::Less,
-                true,
-            )?;
-            FpVar::enforce_cmp(
-                &ships_vars[ship_index].y,
-                &FpVar::one(),
-                std::cmp::Ordering::Greater,
-                true,
-            )?;
-            FpVar::enforce_cmp(
-                &ships_vars[ship_index].y,
-                &ten,
-                std::cmp::Ordering::Less,
-                true,
-            )?;
-        }
+            FpVar::enforce_cmp(&ship_vars.x, &FpVar::one(), Ordering::Greater, true).unwrap();
+            FpVar::enforce_cmp(&ship_vars.x, &ten, Ordering::Less, true).unwrap();
+            FpVar::enforce_cmp(&ship_vars.y, &FpVar::one(), Ordering::Greater, true).unwrap();
+            FpVar::enforce_cmp(&ship_vars.y, &ten, Ordering::Less, true).unwrap();
+        });
 
         // Check lengths of the ships
         // Require ships sorted by the length
@@ -142,8 +126,8 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
             let new_y = &ship_vars.y + &ship_vars.size - &FpVar::one();
 
             // new_x, new_y <= 10
-            let is_within_x = FpVar::is_cmp(&new_x, &ten, std::cmp::Ordering::Less, true).unwrap();
-            let is_within_y = FpVar::is_cmp(&new_y, &ten, std::cmp::Ordering::Less, true).unwrap();
+            let is_within_x = FpVar::is_cmp(&new_x, &ten, Ordering::Less, true).unwrap();
+            let is_within_y = FpVar::is_cmp(&new_y, &ten, Ordering::Less, true).unwrap();
 
             let valid_requirement =
                 Boolean::conditionally_select(&is_vertical, &is_within_y, &is_within_x).unwrap();
@@ -159,33 +143,6 @@ impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardCircuit {
 
         Ok(())
     }
-}
-
-fn create_ship_vars(ship: &Ship, cs: &ConstraintSystemRef<CircuitField>) -> Result<ShipVars> {
-    let direction = FpVar::new_witness(ns!(cs, "shipDirection"), || {
-        Ok(CircuitField::from(ship.direction as u8))
-    })?;
-    // direction <= 1
-    FpVar::enforce_cmp(&direction, &FpVar::one(), std::cmp::Ordering::Less, true)?;
-
-    let is_vertical = FpVar::is_eq(&direction, &FpVar::zero()).unwrap();
-
-    Ok(ShipVars {
-        x: FpVar::new_witness(ns!(cs, "shipX"), || Ok(CircuitField::from(ship.x)))?,
-        y: FpVar::new_witness(ns!(cs, "shipY"), || Ok(CircuitField::from(ship.y)))?,
-        size: FpVar::new_witness(ns!(cs, "shipSize"), || Ok(CircuitField::from(ship.size)))?,
-        // To be set later
-        size_numerical: None,
-        direction,
-        is_vertical,
-    })
-}
-
-// Need to also check if the var is less than 8 bytes long
-fn cast_fp_var_to_uint8(var: &FpVar<CircuitField>) -> Result<UInt8<CircuitField>> {
-    let bytes = FpVar::to_bytes(&var)?;
-    // to_bytes function returns [var, 0, 0, 0, ...] -- a vector of UInt8 of len 32 (in case of not too large var)
-    Ok(bytes[0].clone())
 }
 
 fn enforce_ships_not_touching(ship1: &ShipVars, ship2: &ShipVars) -> Result<()> {
@@ -243,10 +200,10 @@ fn enforce_ships_not_touching(ship1: &ShipVars, ship2: &ShipVars) -> Result<()> 
     // Touch check
 
     // Check postition of ship1 relative to zone
-    let is_above = FpVar::is_cmp(&ship1_lower_y, &rect_lu_y, std::cmp::Ordering::Less, false)?;
-    let is_below = FpVar::is_cmp(&ship1.y, &rect_ll_y, std::cmp::Ordering::Greater, false)?;
-    let is_left = FpVar::is_cmp(&ship1_right_x, &rect_lu_x, std::cmp::Ordering::Less, false)?;
-    let is_right = FpVar::is_cmp(&ship1.x, &rect_ru_x, std::cmp::Ordering::Greater, false)?;
+    let is_above = FpVar::is_cmp(&ship1_lower_y, &rect_lu_y, Ordering::Less, false)?;
+    let is_below = FpVar::is_cmp(&ship1.y, &rect_ll_y, Ordering::Greater, false)?;
+    let is_left = FpVar::is_cmp(&ship1_right_x, &rect_lu_x, Ordering::Less, false)?;
+    let is_right = FpVar::is_cmp(&ship1.x, &rect_ru_x, Ordering::Greater, false)?;
 
     // Ship1 must be in either of one of these positions
     let vertical_condition = Boolean::or(&is_above, &is_below)?;
@@ -262,7 +219,7 @@ pub fn generate_keys() {
         x: 1,
         y: 1,
         size: 1,
-        direction: Direction::VERTICAL,
+        direction: Direction::Vertical,
     }; 15];
 
     SHIPS_SIZES
@@ -272,7 +229,7 @@ pub fn generate_keys() {
             ships[ship_index].size = ship_size as u8;
         });
 
-    let dummy_circuit = BoardCircuit {
+    let dummy_circuit = BoardDeclarationCircuit {
         board: Board { ships },
         salt: [0; 32],
         hash: [0; 32],
@@ -280,15 +237,15 @@ pub fn generate_keys() {
 
     let now = std::time::Instant::now();
 
-    let (pk, vk) = Groth16::<Curve>::setup(dummy_circuit.clone(), &mut rng).unwrap();
+    let (pk, vk) = Groth16::<Curve>::setup(dummy_circuit, &mut rng).unwrap();
 
     println!("Keys generated");
     let elapsed = now.elapsed();
     println!("Elapsed: {:.2?}", elapsed);
 
-    let vk_file = File::create("keys/vk_file.key").unwrap();
-    let _ = vk.serialize_uncompressed(vk_file).unwrap();
+    let vk_file = File::create("keys/board_declaration/vk.bin").unwrap();
+    vk.serialize_uncompressed(vk_file).unwrap();
 
-    let pk_file = File::create("keys/pk_file.key").unwrap();
-    let _ = pk.serialize_uncompressed(pk_file).unwrap();
+    let pk_file = File::create("keys/board_declaration/pk.bin").unwrap();
+    pk.serialize_uncompressed(pk_file).unwrap();
 }

@@ -11,7 +11,7 @@ use crate::{
         async_receiver::AsyncReceiver,
         log::Log,
         result::{Er, Res},
-        threads::parallel,
+        threads::select_first,
     },
 };
 
@@ -36,7 +36,7 @@ pub async fn run_logic_async(gui_receiver: GuiReceiver, gui_sender: GuiSender) -
                 }
             }
         });
-    parallel(
+    select_first(
         async move {
             buffer_task.await;
             Ok(())
@@ -50,7 +50,10 @@ pub async fn run_logic_async(gui_receiver: GuiReceiver, gui_sender: GuiSender) -
 
 /// Enter the game's logic
 async fn logic_main_loop(mut gui_receiver: GuiReceiver, gui_sender: GuiSender) -> Res<()> {
-    let keys = ArkKeys::load(gui_sender.clone().into());
+    let keys = GameKeys {
+        board_declaration_keys: ArkKeys::load(gui_sender.clone().into(), "keys/board_declaration"),
+        field_declaration_keys: ArkKeys::load(gui_sender.clone().into(), "keys/field_declaration"),
+    };
 
     let interrupt_filter = |msg| async move {
         match msg {
@@ -66,7 +69,7 @@ async fn logic_main_loop(mut gui_receiver: GuiReceiver, gui_sender: GuiSender) -
 
         match gui_receiver.get().await? {
             crate::gui::GuiInput::HostGame { addr, passwd } => {
-                if let Ok(Either::Right(endpoint)) = parallel(
+                if let Ok(Either::Right(endpoint)) = select_first(
                     gui_receiver.consume_in_loop(interrupt_filter),
                     Endpoint::<GameMessage>::accept_incoming_connection(
                         &addr,
@@ -87,7 +90,7 @@ async fn logic_main_loop(mut gui_receiver: GuiReceiver, gui_sender: GuiSender) -
                 }
             }
             crate::gui::GuiInput::JoinGame { addr, passwd } => {
-                if let Ok(Either::Right(endpoint)) = parallel(
+                if let Ok(Either::Right(endpoint)) = select_first(
                     gui_receiver.consume_in_loop(interrupt_filter),
                     Endpoint::<GameMessage>::create_connection_to(
                         &addr,
@@ -120,13 +123,12 @@ async fn enter_lobby(
     gui_sender: GuiSender,
     endpoint: Endpoint<GameMessage>,
     player: Player,
-    keys: ArkKeys,
+    keys: GameKeys,
 ) -> Res<GuiReceiver> {
     let (net_sender, net_receiver, net_loop_task) = endpoint.as_channel_pair();
-
-    let net_sender_clone = net_sender.clone();
+    let net_sender_clone1 = net_sender.clone();
     let filter = {
-        let counter = Arc::new(net_sender_clone);
+        let counter = Arc::new(net_sender_clone1);
         move |input, sender: Sender<GuiInput>| {
             let net_sender = Arc::clone(&counter);
             async move {
@@ -163,10 +165,15 @@ async fn enter_lobby(
     let game_loop_fuse = game_context.game_loop().fuse();
 
     pin_mut!(buffer_loop_task_fuse, game_loop_fuse, net_loop_task_fuse);
-
+    let mut main_loop_finished = false;
     loop {
         select! {
             receiver = buffer_loop_task_fuse => {
+                if !main_loop_finished {
+                    if let Err(e) = game_loop_fuse.await {
+                    gui_sender_clone.log_message(&format!("Error in the main loop: {}", e.message))?;
+                    }
+                }
                 return Ok(receiver);
             }
 
@@ -174,6 +181,7 @@ async fn enter_lobby(
                 if let Err(e) = r {
                     gui_sender_clone.log_message(&format!("Error in the main loop: {}", e.message))?;
                 }
+                main_loop_finished = true;
                 reclaim.ask().await;
             }
 
@@ -181,8 +189,13 @@ async fn enter_lobby(
                 if let Err(e) = r {
                     gui_sender_clone.log_message(&format!("Received network error: {}", e.message))?;
                 }
-                reclaim.ask().await;
             }
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct GameKeys {
+    pub board_declaration_keys: ArkKeys,
+    pub field_declaration_keys: ArkKeys,
 }

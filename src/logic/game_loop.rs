@@ -1,12 +1,11 @@
 use crate::{
-    crypto::keys::ArkKeys,
     gui::{GuiReceiver, GuiSender},
     utils::{log::Log, result::Res},
 };
 
 use super::{
     board_creation::initialize_boards,
-    main::{NetReceiver, NetSender},
+    main::{GameKeys, NetReceiver, NetSender},
 };
 
 pub enum Player {
@@ -21,7 +20,7 @@ pub struct GameContext {
     pub gui_sender: GuiSender,
     pub net_receiver: NetReceiver,
     pub net_sender: NetSender,
-    pub keys: ArkKeys,
+    pub keys: GameKeys,
 }
 
 impl GameContext {

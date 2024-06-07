@@ -7,11 +7,11 @@ use rustyline_async::{Readline, SharedWriter};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    crypto::proofs::BoardCorrectnessProof,
+    circuit::board_declaration_circuit::BoardDeclarationCircuit,
+    crypto::proofs::CorrectnessProof,
     gui::{self, GuiInput, GuiMessage},
-    model::SHIP_SIZES,
-    utils::{async_receiver::AsyncReceiver, log::Log, result::Res, threads::parallel},
-    Direction,
+    model::{Direction, Ship, SHIP_SIZES},
+    utils::{async_receiver::AsyncReceiver, log::Log, result::Res, threads::select_first},
 };
 
 mod board_creation;
@@ -21,7 +21,7 @@ pub mod main;
 /// Possible message received from another player
 #[derive(Debug, Serialize, Deserialize)]
 pub enum GameMessage {
-    BoardIsCorrect(BoardCorrectnessProof, [u8; 32]),
+    BoardIsCorrect(CorrectnessProof<BoardDeclarationCircuit>, [u8; 32]),
 }
 
 pub fn run_main_loop_with_cli() {
@@ -75,15 +75,15 @@ pub fn run_main_loop_with_cli() {
                                 continue;
                             }
                             if let GuiMessage::BoardConstruction(inc_board) = &self.state {
-                                return Ok(GuiInput::PutShip(crate::Ship {
+                                return Ok(GuiInput::PutShip(Ship {
                                     x: words[1].parse().unwrap(),
                                     y: words[2].parse().unwrap(),
                                     size: SHIP_SIZES[inc_board.0.len()],
                                     direction: {
                                         if words[3] == "down" {
-                                            Direction::VERTICAL
+                                            Direction::Vertical
                                         } else {
-                                            Direction::HORIZONTAL
+                                            Direction::Horizontal
                                         }
                                     },
                                 }));
@@ -130,7 +130,7 @@ pub fn run_main_loop_with_cli() {
 
     let f = async move {
         loop {
-            match parallel(cli.receive_input(), get_input_from(&mut r_input)).await? {
+            match select_first(cli.receive_input(), get_input_from(&mut r_input)).await? {
                 futures::future::Either::Left(input) => {
                     s_output.send(input).await.unwrap();
                 }
@@ -146,7 +146,7 @@ pub fn run_main_loop_with_cli() {
         }
     };
 
-    block_on(parallel::<(), ()>(
+    block_on(select_first::<(), ()>(
         f,
         run_logic_async(AsyncReceiver(r_output), s_input),
     ))

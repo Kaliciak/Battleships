@@ -1,13 +1,12 @@
 use async_channel::Sender;
 
 use crate::{
-    model::IncompleteBoard,
+    model::{IncompleteBoard, Ship},
     utils::{
         async_receiver::AsyncReceiver,
         log::{Log, Logger},
         result::Res,
     },
-    Ship,
 };
 
 pub type GuiSender = Sender<GuiMessage>;
