@@ -13,6 +13,7 @@ use ark_serialize::CanonicalSerialize;
 use ark_snark::CircuitSpecificSetupSNARK;
 use ark_std::rand::SeedableRng;
 use ark_std::{iterable::Iterable, rand::rngs::StdRng};
+use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
 use std::fs::File;
 
@@ -30,6 +31,30 @@ pub struct BoardDeclarationCircuit {
     pub board: Board,
     pub salt: [u8; 32],
     pub hash: [u8; 32],
+}
+
+impl From<Board> for BoardDeclarationCircuit {
+    fn from(board: Board) -> Self {
+        let salt = rand::random::<[u8; 32]>();
+
+        // create a Sha256 object
+        let mut hasher = Sha256::new();
+
+        board
+            .ships
+            .iter()
+            .for_each(|ship| hasher.update([ship.x, ship.y, ship.size, ship.direction as u8]));
+        hasher.update(salt);
+
+        // read hash digest and consume hasher
+        let hash_result = hasher.finalize();
+
+        BoardDeclarationCircuit {
+            board,
+            salt,
+            hash: hash_result.into(),
+        }
+    }
 }
 
 impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for BoardDeclarationCircuit {
