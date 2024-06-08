@@ -30,3 +30,4 @@ rustyline-async = "0.4.2"
 clap = "4.5.4"
 dioxus = { version = "0.5.1", features = ["desktop"] }
 dioxus-desktop = "0.5.1"
+rand = "0.8.5"

@@ -11,8 +11,8 @@ use ark_relations::ns;
 use ark_relations::r1cs::{ConstraintSystemRef, Result};
 use ark_serialize::CanonicalSerialize;
 use ark_snark::CircuitSpecificSetupSNARK;
+use ark_std::rand::rngs::StdRng;
 use ark_std::rand::SeedableRng;
-use ark_std::{iterable::Iterable, rand::rngs::StdRng};
 use std::cmp::Ordering;
 use std::fs::File;
 
@@ -22,7 +22,7 @@ pub type CircuitField = Fr;
 use crate::circuit::commons::ShipVars;
 use crate::model::{Board, Direction, FieldState, Ship};
 
-use super::commons::SHIPS_SIZES;
+use super::board_declaration_circuit::BoardDeclarationCircuit;
 use super::commons::{compute_hash, create_ship_vars};
 
 #[derive(Copy, Clone, Debug)]
@@ -35,13 +35,27 @@ pub struct FieldDeclarationCircuit {
     pub field_state: FieldState,
 }
 
+impl From<(BoardDeclarationCircuit, u8, u8)> for FieldDeclarationCircuit {
+    fn from((board_circ, field_x, field_y): (BoardDeclarationCircuit, u8, u8)) -> Self {
+        let field_state = board_circ.board.get_field_state(field_x, field_y);
+        FieldDeclarationCircuit {
+            board: board_circ.board,
+            salt: board_circ.salt,
+            hash: board_circ.hash,
+            field_x,
+            field_y,
+            field_state,
+        }
+    }
+}
+
 impl ark_relations::r1cs::ConstraintSynthesizer<CircuitField> for FieldDeclarationCircuit {
     fn generate_constraints(self, cs: ConstraintSystemRef<CircuitField>) -> Result<()> {
         // Generate needed constant
         let ten = FpVar::new_constant(ns!(cs, "10"), CircuitField::from(10))?;
 
         // Create private variables for each ship
-        let mut ships_vars: [ShipVars; 15] = self
+        let ships_vars: [ShipVars; 15] = self
             .board
             .ships
             .map(|ship| create_ship_vars(&ship, &cs).unwrap());
@@ -131,13 +145,13 @@ fn is_ship_occupying_field(
     )?;
 
     // ship.x <= field_x <= ship.right_x
-    let ship_x_le_field_x = FpVar::is_cmp(&ship_vars.x, &field_x_var, Ordering::Less, true)?;
-    let right_x_ge_field_x = FpVar::is_cmp(&ship_right_x, &field_x_var, Ordering::Greater, true)?;
+    let ship_x_le_field_x = FpVar::is_cmp(&ship_vars.x, field_x_var, Ordering::Less, true)?;
+    let right_x_ge_field_x = FpVar::is_cmp(&ship_right_x, field_x_var, Ordering::Greater, true)?;
     let x_condition = Boolean::and(&ship_x_le_field_x, &right_x_ge_field_x)?;
 
     // ship.y <= field_y <= ship.lower_y
-    let ship_y_le_field_y = FpVar::is_cmp(&ship_vars.y, &field_y_var, Ordering::Less, true)?;
-    let lower_y_ge_field_y = FpVar::is_cmp(&ship_lower_y, &field_y_var, Ordering::Greater, true)?;
+    let ship_y_le_field_y = FpVar::is_cmp(&ship_vars.y, field_y_var, Ordering::Less, true)?;
+    let lower_y_ge_field_y = FpVar::is_cmp(&ship_lower_y, field_y_var, Ordering::Greater, true)?;
     let y_condition = Boolean::and(&ship_y_le_field_y, &lower_y_ge_field_y)?;
 
     // If the ship occupies given field
@@ -147,7 +161,7 @@ fn is_ship_occupying_field(
 pub fn generate_keys() {
     let mut rng = StdRng::seed_from_u64(1);
 
-    let mut ships = [Ship {
+    let ships = [Ship {
         x: 1,
         y: 1,
         size: 1,

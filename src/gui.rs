@@ -2,8 +2,9 @@ use dioxus::prelude::*;
 use dioxus_desktop::*;
 
 use crate::{
-    ui::{self, UI, Input, Logger},
     logic,
+    ui::{self, UiInput, UiMessage},
+    utils::log::Logger,
 };
 
 mod main_menu;
@@ -31,7 +32,7 @@ enum GameScreenType {
 #[component]
 fn App() -> Element {
     use_context_provider(|| Signal::new(GameScreenType::MainMenu));
-    use_context_provider(|| Signal::<Option::<Input>>::new(None));
+    use_context_provider(|| Signal::<Option::<UiInput>>::new(None));
 
     rsx! {
         link { rel: "stylesheet", href: "{ASSETS_DIR}/style.css" }
