@@ -13,7 +13,7 @@ pub enum Direction {
     Horizontal = 1,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FieldState {
     // No ship on the field
     Empty = 0,

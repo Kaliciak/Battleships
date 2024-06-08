@@ -1,5 +1,7 @@
 use async_channel::Sender;
 
+pub mod cli;
+
 use crate::{
     logic::GameState,
     model::{IncompleteBoard, Ship},
@@ -27,12 +29,14 @@ impl From<GuiSender> for Logger {
 }
 
 /// Message (state) that can be send to the GUI
+#[derive(Clone)]
 pub enum GuiMessage {
     Log(String),
     MainScreen,
     Lobby,
     BoardConstruction(IncompleteBoard),
     PrintGameState(GameState),
+    Exit,
 }
 
 /// Input received from the GUI
