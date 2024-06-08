@@ -24,6 +24,7 @@ pub type NetSender = Sender<Message<GameMessage>>;
 pub type NetReceiver = AsyncReceiver<Message<GameMessage>>;
 
 pub async fn run_logic_async(gui_receiver: GuiReceiver, gui_sender: GuiSender) -> Res<()> {
+    let sender_clone = gui_sender.clone();
     let (filtered_receiver, buffer_task, reclaim) =
         gui_receiver.into_bufferred(|input, sender| async move {
             match input {
@@ -36,15 +37,20 @@ pub async fn run_logic_async(gui_receiver: GuiReceiver, gui_sender: GuiSender) -
                 }
             }
         });
-    select_first(
+    let result = select_first(
         async move {
             buffer_task.await;
             Ok(())
         },
         logic_main_loop(filtered_receiver, gui_sender),
     )
-    .await?;
+    .await;
     reclaim.ask().await;
+
+    if let Err(Er { message }) = result {
+        let _ = sender_clone.log_message(&format!("Main thread exited with error: {message}"));
+    }
+    let _ = sender_clone.send(GuiMessage::Exit).await;
     Ok(())
 }
 
