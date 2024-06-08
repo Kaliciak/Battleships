@@ -36,7 +36,7 @@ pub enum GuiMessage {
     Lobby,
     BoardConstruction(IncompleteBoard),
     PrintGameState(GameState),
-    Exit
+    Exit,
 }
 
 /// Input received from the GUI

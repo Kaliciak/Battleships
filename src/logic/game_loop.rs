@@ -51,7 +51,7 @@ impl GameContext {
         self.gui_sender.send(crate::gui::GuiMessage::Lobby).await?;
         let (board, their_hash) = initialize_boards(self).await?;
         self.gui_sender
-            .log_message("Boards has been successfully initialized!")?;
+            .log_message("Boards have been successfully initialized!")?;
         GameState {
             board,
             their_hash,
@@ -83,22 +83,25 @@ impl GameState {
                 return Ok(());
             }
 
+            let should_switch: bool;
             if self.our_role == self.turn_of {
                 game_context
                     .gui_sender
                     .log_message("Processing our turn...")?;
-                self.process_our_turn(game_context).await?;
+                should_switch = self.process_our_turn(game_context).await?;
             } else {
                 game_context
                     .gui_sender
                     .log_message("Processing turn of the other player...")?;
-                self.process_their_turn(game_context).await?;
+                should_switch = self.process_their_turn(game_context).await?;
             }
 
-            self.turn_of = self.turn_of.other();
+            if should_switch {
+                self.turn_of = self.turn_of.other()
+            };
         }
     }
-    async fn process_our_turn(&mut self, game_context: &mut GameContext) -> Res<()> {
+    async fn process_our_turn(&mut self, game_context: &mut GameContext) -> Res<bool> {
         loop {
             if let GuiInput::Shoot(x, y) = game_context.gui_receiver.get().await? {
                 game_context
@@ -140,14 +143,14 @@ impl GameState {
                             }
                         ))?;
                         self.our_shots.push((x, y, state));
-                        return Ok(());
+                        return Ok(state == FieldState::Empty);
                     }
                 }
             }
         }
     }
 
-    async fn process_their_turn(&mut self, game_context: &mut GameContext) -> Res<()> {
+    async fn process_their_turn(&mut self, game_context: &mut GameContext) -> Res<bool> {
         game_context
             .gui_sender
             .log_message("Waiting for opponent's query")?;
@@ -174,7 +177,7 @@ impl GameState {
                     .send(Message::Value(GameMessage::FieldProof(proof, state)))
                     .await?;
                 self.their_shots.push((x, y, state));
-                return Ok(());
+                return Ok(state == FieldState::Empty);
             }
         }
     }

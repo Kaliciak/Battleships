@@ -32,7 +32,6 @@ Witamy w grze w statki!
 pub fn run_cli_gui(receiver: Receiver<GuiMessage>, sender: Sender<GuiInput>) {
     let (mut reader, writer) = Readline::new("> ".to_string()).unwrap();
 
-
     let _ = std::thread::Builder::new()
         .stack_size(1024 * 1024)
         .spawn(|| {
@@ -69,7 +68,8 @@ pub fn run_cli_gui(receiver: Receiver<GuiMessage>, sender: Sender<GuiInput>) {
             };
             let _ = block_on(select_first(sending_task, receiving_task));
         })
-        .unwrap().join();
+        .unwrap()
+        .join();
 }
 async fn get_input(reader: &mut Readline, cli: &mut Cli) -> Res<GuiInput> {
     loop {
