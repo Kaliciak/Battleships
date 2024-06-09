@@ -1,3 +1,5 @@
+use async_channel::Sender;
+use async_std::task::block_on;
 use dioxus::prelude::*;
 
 use crate::{
@@ -7,8 +9,7 @@ use crate::{
 
 #[component]
 pub fn MainMenu() -> Element {
-    let mut screen_type = consume_context::<Signal<GameScreenType>>();
-    let mut message = use_context::<Signal<Option<UiInput>>>();
+    let sender = use_context::<Sender<UiInput>>();
 
     let mut details_display_style = use_signal(|| "display: none".to_string());
     let mut buttons_display_style = use_signal(|| "".to_string());
@@ -87,18 +88,18 @@ pub fn MainMenu() -> Element {
                     class: "ok-button",
                     style: "display: inline",
                     onclick: move |_| {
-                        *message.write() = if "{title}".to_lowercase().contains("host") {
-                            Some(UiInput::HostGame {
+                        // TODO replace block_on
+                        block_on(sender.send(if details_title().to_lowercase().contains("create") {
+                            UiInput::HostGame {
                                 addr: url(),
                                 passwd: passwd(),
-                            })
+                            }
                         } else {
-                            Some(UiInput::JoinGame {
+                            UiInput::JoinGame {
                                 addr: url(),
                                 passwd: passwd(),
-                            })
-                        };
-                        *screen_type.write() = GameScreenType::Lobby;
+                            }
+                        })).expect("");
                     },
                     "continue"
                 }
