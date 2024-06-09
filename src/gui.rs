@@ -53,10 +53,7 @@ fn App() -> Element {
                     UiMessage::MainScreen => { screen_type.set(GameScreenType::MainMenu) }
                     UiMessage::Lobby => { screen_type.set(GameScreenType::Lobby) }
                     UiMessage::Log(s) => { logs.push(s) }
-                    UiMessage::BoardConstruction(board) => {
-                        println!("{:#?}", board);
-                        inc_board.set(board);
-                    }
+                    UiMessage::BoardConstruction(board) => { inc_board.set(board) }
                     default => { println!("not yet implemented") }
                 }
             }
