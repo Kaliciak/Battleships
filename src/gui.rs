@@ -37,15 +37,17 @@ enum GameScreenType {
 #[component]
 fn App() -> Element {
     use_context_provider(|| Signal::new(GameScreenType::MainMenu));
+    use_context_provider(|| Signal::new(Vec::<String>::new()));
     use_coroutine(|_: UnboundedReceiver<String>| {
         let mut screen_type = use_context::<Signal<GameScreenType>>();
         let mut receiver = use_context::<Receiver<UiMessage>>();
+        let mut logs = use_context::<Signal<Vec<String>>>();
         async move {
             loop {
                 match receiver.recv().await.expect("") {
                     UiMessage::MainScreen => { screen_type.set(GameScreenType::MainMenu) }
                     UiMessage::Lobby => { screen_type.set(GameScreenType::Lobby) }
-                    UiMessage::Log(s) => { println!("{}", s) } // TODO replace with gui logger
+                    UiMessage::Log(s) => { logs.push(s) }
                     default => { println!("not yet implemented") }
                 }
             }
@@ -55,6 +57,7 @@ fn App() -> Element {
     rsx! {
         link { rel: "stylesheet", href: "{ASSETS_DIR}/style.css" }
         GameScreen {}
+        LogsScreen {}
     }
 }
 
@@ -66,6 +69,19 @@ fn GameScreen() -> Element {
         GameScreenType::MainMenu => rsx! { crate::gui::main_menu::MainMenu {} },
         GameScreenType::Lobby => rsx! { Lobby {} },
         GameScreenType::Board => rsx! { Board {} },
+    }
+}
+
+#[component]
+fn LogsScreen() -> Element {
+    let logs = use_context::<Signal<Vec<String>>>();
+    rsx! {
+        div {
+            class: "old-screen",
+            for log in logs() {
+                p { "{log}" }
+            }
+        }
     }
 }
 
