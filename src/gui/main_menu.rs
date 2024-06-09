@@ -9,8 +9,6 @@ use crate::{
 
 #[component]
 pub fn MainMenu() -> Element {
-    let sender = use_context::<Sender<UiInput>>();
-
     let mut details_display_style = use_signal(|| "display: none".to_string());
     let mut buttons_display_style = use_signal(|| "".to_string());
     let mut details_title = use_signal(|| "".to_string());
@@ -40,6 +38,15 @@ pub fn MainMenu() -> Element {
                 *details_title.write() = "Join room".to_string();
             },
             "Join room"
+        }
+        button {
+            class: "torpedo-button",
+            style: "{buttons_display_style}",
+            onclick: move |_| {
+                let sender = use_context::<Sender<UiInput>>();
+                block_on(sender.send(UiInput::Exit)).expect("");
+            },
+            "Exit"
         }
         ControlPanelStyledForm {
             style: "{details_display_style}",
@@ -88,7 +95,7 @@ pub fn MainMenu() -> Element {
                     class: "ok-button",
                     style: "display: inline",
                     onclick: move |_| {
-                        // TODO replace block_on
+                        let sender = use_context::<Sender<UiInput>>();
                         block_on(sender.send(if details_title().to_lowercase().contains("create") {
                             UiInput::HostGame {
                                 addr: url(),

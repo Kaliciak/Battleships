@@ -4,7 +4,7 @@ use dioxus::prelude::*;
 use dioxus_desktop::*;
 
 use crate::{
-    logic,
+    logic::GameState,
     model::{Direction, IncompleteBoard, Ship},
     ui::{self, UiInput, UiMessage},
     utils::log::Logger,
@@ -12,6 +12,7 @@ use crate::{
 
 mod main_menu;
 mod lobby;
+mod boards;
 
 pub static ASSETS_DIR: &str = "assets";
 pub static GAME_TITLE: &str = "Battleships";
@@ -34,7 +35,7 @@ pub fn run_gui(receiver: Receiver<UiMessage>, sender: Sender<UiInput>) {
 enum GameScreenType {
     MainMenu,
     Lobby,
-    Board,
+    Boards,
 }
 
 #[component]
@@ -42,11 +43,13 @@ fn App() -> Element {
     use_context_provider(|| Signal::new(GameScreenType::MainMenu));
     use_context_provider(|| Signal::new(Vec::<String>::new()));
     use_context_provider(|| Signal::new(IncompleteBoard(vec![])));
+    use_context_provider(|| Signal::<Option<GameState>>::new(None));
     use_coroutine(|_: UnboundedReceiver<String>| {
         let mut screen_type = use_context::<Signal<GameScreenType>>();
         let mut receiver = use_context::<Receiver<UiMessage>>();
         let mut logs = use_context::<Signal<Vec<String>>>();
         let mut inc_board = use_context::<Signal<IncompleteBoard>>();
+        let mut versus_state = use_context::<Signal<Option<GameState>>>();
         async move {
             loop {
                 match receiver.recv().await.expect("") {
@@ -54,7 +57,11 @@ fn App() -> Element {
                     UiMessage::Lobby => { screen_type.set(GameScreenType::Lobby) }
                     UiMessage::Log(s) => { logs.push(s) }
                     UiMessage::BoardConstruction(board) => { inc_board.set(board) }
-                    default => { println!("not yet implemented") }
+                    UiMessage::PrintGameState(state) => {
+                        screen_type.set(GameScreenType::Boards);
+                        versus_state.set(Some(state));
+                    }
+                    UiMessage::Exit => { window().close() }
                 }
             }
         }
@@ -74,7 +81,7 @@ fn GameScreen() -> Element {
     match screen_type() {
         GameScreenType::MainMenu => rsx! { crate::gui::main_menu::MainMenu {} },
         GameScreenType::Lobby => rsx! { crate::gui::lobby::Lobby {} },
-        GameScreenType::Board => rsx! { Board {} },
+        GameScreenType::Boards => rsx! { crate::gui::boards::Boards {} },
     }
 }
 
@@ -84,16 +91,9 @@ fn LogsScreen() -> Element {
     rsx! {
         div {
             class: "old-screen",
-            for log in logs() {
+            for log in logs().iter().rev() {
                 p { "{log}" }
             }
         }
-    }
-}
-
-#[component]
-fn Board() -> Element {
-    rsx! {
-        h1 { "Game board" }
     }
 }

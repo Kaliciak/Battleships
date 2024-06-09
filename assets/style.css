@@ -135,6 +135,8 @@ input {
 	padding: 0.3em;
 	border: solid #9CA4A8;
 	overflow: scroll;
+	display: flex;
+	flex-direction: column-reverse;
 }
 
 .old-screen p {
