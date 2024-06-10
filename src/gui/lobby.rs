@@ -3,7 +3,7 @@ use async_std::task::block_on;
 use dioxus::prelude::*;
 
 use crate::{
-    gui::{ASSETS_DIR, GameScreenType, common::ControlPanelStyle},
+    gui::{ASSETS_DIR, GameScreenType, common::{BoardData, ControlPanelStyle, FieldState}},
     model::{Direction, IncompleteBoard, Ship, SHIP_SIZES},
     ui::UiInput,
 };
@@ -26,11 +26,8 @@ pub fn Lobby() -> Element {
                     }
                 }
             }
-            div {
+            Board {
                 style: "margin: 3em auto",
-                Board {
-                    style: ""
-                }
             }
         }
     }
@@ -39,7 +36,7 @@ pub fn Lobby() -> Element {
 #[derive(Clone)]
 struct State {
     ships: Vec<u8>,
-    board: Vec<Vec<u8>>,
+    board: Vec<Vec<FieldState>>,
     current_ship_size: u8,
 }
 
@@ -52,44 +49,12 @@ fn determine_state(inc_board: Signal<IncompleteBoard>) -> State {
         ships[s as usize] += 1;
     }
 
-    let mut board = vec![ vec![0] ];
-    for _ in 0..11 {
-        let val = board[0][0].clone();
-        board[0].push(val);
-    }
-    for _ in 0..11 {
-        let val = board[0].clone();
-        board.push(val);
-    }
-
     for ship in inc_board().0 {
         ships[(ship.size as usize)] -= 1;
-        if ship.direction == Direction::Horizontal {
-            for i in 0..ship.size {
-                board[ship.y as usize][(ship.x + i) as usize] = 2;
-                board[(ship.y - 1) as usize][(ship.x + i) as usize] = 1;
-                board[(ship.y + 1) as usize][(ship.x + i) as usize] = 1;
-            }
-            board[(ship.y - 1) as usize][(ship.x - 1) as usize] = 1;
-            board[(ship.y - 1) as usize][(ship.x + ship.size) as usize] = 1;
-            board[ship.y as usize][(ship.x - 1) as usize] = 1;
-            board[ship.y as usize][(ship.x + ship.size) as usize] = 1;
-            board[(ship.y + 1) as usize][(ship.x - 1) as usize] = 1;
-            board[(ship.y + 1) as usize][(ship.x + ship.size) as usize] = 1;
-        } else {
-            for i in 0..ship.size {
-                board[(ship.y + i) as usize][ship.x as usize] = 2;
-                board[(ship.y + i) as usize][(ship.x - 1) as usize] = 1;
-                board[(ship.y + i) as usize][(ship.x + 1) as usize] = 1;
-            }
-            board[(ship.y - 1) as usize][(ship.x - 1) as usize] = 1;
-            board[(ship.y - 1) as usize][ship.x as usize] = 1;
-            board[(ship.y - 1) as usize][(ship.x + 1) as usize] = 1;
-            board[(ship.y + ship.size) as usize][(ship.x - 1) as usize] = 1;
-            board[(ship.y + ship.size) as usize][ship.x as usize] = 1;
-            board[(ship.y + ship.size) as usize][(ship.x + 1) as usize] = 1;
-        }
     }
+
+    let mut board_data = BoardData::new(inc_board().0);
+    board_data.add_borders(inc_board().0);
 
     let mut current_ship_size: u8 = 0;
     for i in 0..ships.len() {
@@ -101,7 +66,7 @@ fn determine_state(inc_board: Signal<IncompleteBoard>) -> State {
 
     State {
         ships,
-        board,
+        board: board_data.board,
         current_ship_size
     }
 }
@@ -188,55 +153,33 @@ fn Board(style: String) -> Element {
     rsx! {
         div {
             style: "{style}",
-            div {
-                style: "display: grid; grid-template-columns: auto repeat(11, 5em) auto; gap: 0.5em",
+            class: "board",
+            p { class: "column-labels-padding" }
+            for i in 1..11 {
                 p {
-                    style: "margin: 0 auto; padding: 0; grid-column: 1/3; grid-row: 1",
-                    ""
+                    class: "column-label",
+                    "{i}"
                 }
-                for i in 2..12 {
-                    p {
-                        style: "margin: 0; padding: 0; font-size: 3em; grid-colum: {i}; grid-row: 1",
-                        "{i-1}"
-                    }
-                }
+            }
+            for i in 1..11 {
                 p {
-                    style: "margin: 0 auto; padding: 0; grid-column: 13; grid-row: 1",
-                    ""
+                    class: "row-label",
+                    "{i}"
                 }
-                for i in 2..12 {
-                    p {
-                        style: "margin: 0 auto; padding: 0; grid-column: 1; grid-row: {i}",
-                        ""
-                    }
-                    p {
-                        style: "margin: 0; padding: 0; font-size: 3em; grid-column: 2; grid-row: {i}; text-align: center",
-                        "{i-1}"
-                    }
-                    for j in 3..13 {
-                        if board[i-1][j-2] == 0 {
-                            button {
-                                style: "padding: 0; margin: 0; font-size: 1em; width: 5em; height: 5em; background: white; grid-column: {j}; grid-row: {i}",
-                                onclick: move |_| {
-                                    let sender = use_context::<Sender<UiInput>>();
-                                    block_on(sender.send(UiInput::PutShip(Ship { x: (j-2) as u8, y: (i-1) as u8, size: state.current_ship_size, direction: direction()}))).expect("");
-                                }
-                            }
-                        } else if board[i-1][j-2] == 2 {
-                            button {
-                                style: "padding: 0; margin: 0; font-size: 1em; width: 5em; height: 5em; background: black; grid-column: {j}; grid-row: {i}",
-                                disabled: true
-                            }
-                        } else {
-                            button {
-                                style: "padding: 0; margin: 0; font-size: 1em; width: 5em; height: 5em; background: grey; grid-column: {j}; grid-row: {i}",
-                                disabled: true
-                            }
+                for j in 1..11 {
+                    button {
+                        class: board[i][j].to_class_name(),
+                        disabled: board[i][j] != FieldState::Empty,
+                        onclick: move |_| {
+                            let sender = use_context::<Sender<UiInput>>();
+                            block_on(sender.send(UiInput::PutShip(
+                                        Ship {
+                                            x: j as u8,
+                                            y: i as u8,
+                                            size: state.current_ship_size,
+                                            direction: direction()
+                                        }))).expect("");
                         }
-                    }
-                    p {
-                        style: "margin: 0 auto; padding: 0; grid-column: 13; grid-row: {i}",
-                        ""
                     }
                 }
             }
