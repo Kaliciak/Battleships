@@ -3,7 +3,7 @@ use async_std::task::block_on;
 use dioxus::prelude::*;
 
 use crate::{
-    gui::{ASSETS_DIR, GameScreenType},
+    gui::{GameScreenType, common::ControlPanelStyle},
     ui::UiInput,
 };
 
@@ -48,107 +48,73 @@ pub fn MainMenu() -> Element {
             },
             "Exit"
         }
-        ControlPanelStyledForm {
-            style: "{details_display_style}",
+        ControlPanelStyle {
+            style: "margin: 3em auto; {details_display_style}",
 
-            h2 {
-                style: "margin: 0 auto; grid-column: 1/3; font-size: 2em",
-                "{details_title}"
-            }
-            label {
-                r#for: "url-input",
-                "URL"
-            }
-            input {
-                id: "url-input",
-                r#type: "url",
-                value: "{url}",
-                required: true,
-                oninput: move |event| url.set(event.value())
-            }
-    
-            label {
-                r#for: "pwd-input",
-                "password"
-            }
-            input {
-                id: "pwd-input",
-                value: "{passwd}",
-                required: true,
-                oninput: move |event| passwd.set(event.value())
-            }
-
-            div {
-                style: "margin: 0 auto; grid-column: 1/3",
-                button {
-                    class: "abort-button",
-                    style: "margin: 0 1em 0 auto; display: inline",
-                    onclick: move |_| {
-                        *details_display_style.write() = "display: none".to_string();
-                        *buttons_display_style.write() = "".to_string();
-                        *url.write() = "".to_string();
-                        *passwd.write() = "".to_string();
-                    },
-                    "cancel"
+            form {
+                onsubmit: move |_| {},
+                h2 {
+                    style: "margin: 0 auto; font-size: 2em",
+                    "{details_title}"
                 }
-                button {
-                    class: "ok-button",
-                    style: "display: inline",
-                    onclick: move |_| {
-                        let sender = use_context::<Sender<UiInput>>();
-                        block_on(sender.send(if details_title().to_lowercase().contains("create") {
-                            UiInput::HostGame {
-                                addr: url(),
-                                passwd: passwd(),
-                            }
-                        } else {
-                            UiInput::JoinGame {
-                                addr: url(),
-                                passwd: passwd(),
-                            }
-                        })).expect("");
-                    },
-                    "continue"
+                div {
+                    class: "form-inputs",
+                    label {
+                        r#for: "url-input",
+                        "URL"
+                    }
+                    input {
+                        id: "url-input",
+                        r#type: "url",
+                        value: "{url}",
+                        required: true,
+                        oninput: move |event| url.set(event.value())
+                    }
+
+                    label {
+                        r#for: "pwd-input",
+                        "password"
+                    }
+                    input {
+                        id: "pwd-input",
+                        value: "{passwd}",
+                        required: true,
+                        oninput: move |event| passwd.set(event.value())
+                    }
                 }
-            }
-        }
-    }
-}
 
-#[component]
-fn ControlPanelStyledForm(style: String, children: Element) -> Element {
-    let mut decorations_styles = Vec::<String>::new();
-    for i in 0..4 {
-        let margin = if i % 2 == 0 {
-            "5px"
-        } else {
-            "5px 5px 5px auto"
-        };
-        let grid_column = (i % 2) + 1;
-        let grid_row = if i < 2 {
-            "grid-row: 1"
-        } else {
-            ""
-        };
-
-        decorations_styles.push(
-            format!("margin: {margin}; grid-column: {grid_column}; {grid_row}").to_string()
-        );
-    }
-
-    rsx! {
-        form {
-            class: "control-panel-form",
-            style: "{style}",
-            onsubmit: move |_| {},
-
-            {children}
-
-            for style in decorations_styles {
-                img {
-                    aria_hidden: true,
-                    style: "{style}",
-                    src: "{ASSETS_DIR}/screw.svg"
+                div {
+                    style: "margin: 0 auto;",
+                    button {
+                        class: "abort-button",
+                        style: "margin: 0 1em 0 auto; display: inline",
+                        onclick: move |_| {
+                            *details_display_style.write() = "display: none".to_string();
+                            *buttons_display_style.write() = "".to_string();
+                            *url.write() = "".to_string();
+                            *passwd.write() = "".to_string();
+                        },
+                        "cancel"
+                    }
+                    button {
+                        class: "ok-button",
+                        style: "display: inline",
+                        onclick: move |_| {
+                            let sender = use_context::<Sender<UiInput>>();
+                            block_on(sender.send(if details_title().to_lowercase().contains("create") {
+                                UiInput::HostGame {
+                                    addr: url(),
+                                    passwd: passwd(),
+                                }
+                            } else {
+                                UiInput::JoinGame {
+                                    addr: url(),
+                                    passwd: passwd(),
+                                }
+                            })).expect("");
+                        },
+                        "continue"
+                    }
                 }
             }
         }

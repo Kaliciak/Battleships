@@ -57,16 +57,18 @@ button {
 	background: center no-repeat url("torpeda-ciemna.svg");
 }
 
-.control-panel-form {
-	margin: 3em auto;
-	display: grid;
-	grid-template-columns: 1fr 3fr;
-	gap: 10px;
+.control-panel {
+	display: flex;
+	flex-direction: column;
 	width: 30%;
 	background: #9CA4A8;
 }
 
-.control-panel-form .ok-button {
+.control-panel > * {
+	flex-grow: 1;
+}
+
+.control-panel .ok-button {
 	background: #7DA826;
 	border-top-color: #99A87D;
 	border-left-color: #99A87D;
@@ -74,11 +76,11 @@ button {
 	border-right-color: #537019;
 }
 
-.control-panel-form .ok-button:hover {
+.control-panel .ok-button:hover {
 	outline: none;
 }
 
-.control-panel-form .ok-button:active {
+.control-panel .ok-button:active {
 	outline: none;
 	color: #7DA826;
 	background: #29380C;
@@ -88,7 +90,7 @@ button {
 	border-left-color: #537019;
 }
 
-.control-panel-form .abort-button {
+.control-panel .abort-button {
 	background: #A8263C;
 	border-top-color: #A87D84;
 	border-left-color: #A87D84;
@@ -96,11 +98,11 @@ button {
 	border-right-color: #701929;
 }
 
-.control-panel-form .abort-button:hover {
+.control-panel .abort-button:hover {
 	outline: none;
 }
 
-.control-panel-form .abort-button:active {
+.control-panel .abort-button:active {
 	outline: none;
 	color: #A8263C;
 	background: #380C14;
@@ -110,12 +112,59 @@ button {
 	border-left-color: #701929;
 }
 
-label {
-	margin: 0 0.5em;
+.control-panel input[type=radio] {
+	appearance: none;
+	margin: 0;
+	background: #CDC526;
+	width: 1.5em;
+	height: 1.5em;
+	border: 0.15em solid;
+	border-top-color: #CCC994;
+	border-left-color: #CCC994;
+	border-bottom-color: #888219;
+	border-right-color: #888219;
+}
+
+.control-panel input[type=radio]:checked {
+	background: #44410C;
+	border-bottom-color: #CCC994;
+	border-right-color: #CCC994;
+	border-top-color: #888219;
+	border-left-color: #888219;
+}
+
+.control-panel fieldset {
+	border: none;
+	display: grid;
+	grid-template-columns: 2em auto;
+	gap: 0.5em;
+}
+
+.control-panel .fieldset-title {
+	grid-column: 1/3;
 	font-size: 2em;
 }
 
-input {
+fieldset label {
+	text-align: left
+}
+
+.form-inputs {
+	margin: 1em auto;
+	display: grid;
+	grid-template-columns: 1fr 3fr;
+	gap: 10px;
+}
+
+label {
+	font-size: 2em;
+}
+
+.form-inputs label {
+	margin: 0 0.5em;
+}
+
+.form-inputs input {
 	margin: 0 0.5em;
 	font-size: 2em;
 }

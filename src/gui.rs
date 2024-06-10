@@ -13,6 +13,7 @@ use crate::{
 mod main_menu;
 mod lobby;
 mod boards;
+mod common;
 
 pub static ASSETS_DIR: &str = "assets";
 pub static GAME_TITLE: &str = "Battleships";

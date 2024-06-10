@@ -3,7 +3,7 @@ use async_std::task::block_on;
 use dioxus::prelude::*;
 
 use crate::{
-    gui::{ASSETS_DIR, GameScreenType},
+    gui::{ASSETS_DIR, GameScreenType, common::ControlPanelStyle},
     model::{Direction, IncompleteBoard, Ship, SHIP_SIZES},
     ui::UiInput,
 };
@@ -14,15 +14,23 @@ pub fn Lobby() -> Element {
 
     rsx! {
         div {
-            style: "display: grid; grid-template-columns: 1fr 3fr; grid-template-rows: 1fr 1fr; grid-row-gap: 5em",
-            RemainingShips {
-                style: "grid-column: 1; grid-row: 1"
+            style: "display: flex; align-items: center",
+            ControlPanelStyle {
+                style: "width: auto; margin: 3em auto",
+                div {
+                    RemainingShips {
+                        style: ""
+                    }
+                    ShipDirection {
+                        style: ""
+                    }
+                }
             }
-            ShipDirection {
-                style: "grid-column: 1; grid-row: 2"
-            }
-            Board {
-                style: "grid-column:2; grid-row: 1/3"
+            div {
+                style: "margin: 3em auto",
+                Board {
+                    style: ""
+                }
             }
         }
     }
@@ -106,20 +114,14 @@ fn RemainingShips(style: String) -> Element {
 
     rsx! {
         div {
-            style: "{style}; display: grid; grid-template-columns: auto 2em 2em 2em 2em 2em 4em auto; gap: 0.3em",
-            div {
-                style: "grid-column: 1; grid-row: 2/7; margin: 0 auto"
-            }
-            div {
-                style: "grid-column: 8; grid-row: 2/7; margin: 0 auto"
-            }
+            style: "{style}; display: grid; grid-template-columns: 2em 2em 2em 2em 2em 4em; gap: 0.3em",
             h2 {
-                style: "grid-column: 1/9; font-size: 2em",
+                style: "grid-column: 1/7; font-size: 2em",
                 "Remaining ships:"
             }
             for i in 0..ships.len() {
                 if ships[i] > 0 {
-                    for j in 2..i+2 {
+                    for j in 1..i+1 {
                         div {
                             grid_column: "{j}",
                             display: "inline",
@@ -132,7 +134,7 @@ fn RemainingShips(style: String) -> Element {
                         }
                     }
                     p {
-                        style: "grid-column: 7; font-size: 2em; margin: 0.3em",
+                        style: "grid-column: 6; font-size: 2em; margin: 0.3em",
                         "x {ships[i]}"
                     }
                 }
@@ -147,43 +149,28 @@ fn ShipDirection(style: String) -> Element {
 
     rsx! {
         fieldset {
-            style: "{style}; border: none; display: grid; grid-template-columns: auto 2em 12em auto; grid-template-rows: 2em 2em 2em auto; grid-row-gap: 0.3em",
-            div {
-                style: "grid-column: 1; grid-row: 2/4; margin: 0 auto"
-            }
-            div {
-                style: "grid-column: 4; grid-row: 2/4; margin: 0 auto"
-            }
-            div {
-                style: "grid-column: 1/5; grid-row: 4; margin: auto"
-            }
-            legend {
-                style: "grid-column: 1/5; font-size: 2em",
+            style: "{style}",
+            h2 {
+                class: "fieldset-title",
                 "Ship direction:"
             }
             input {
-                style: "font-size: 2em; grid-column: 2",
+                id: "horizontal",
                 r#type: "radio",
                 checked: if direction() == Direction::Horizontal { "true" } else { "false" },
-                onclick: move |_| { direction.set(Direction::Horizontal) },
-                id: "horizontal",
-                tabindex: 0
+                onclick: move |_| { direction.set(Direction::Horizontal) }
             }
             label {
-                style: "font-size: 2em; grid-column: 3; text-align: left",
                 r#for: "horizontal",
                 "horizontal"
             }
             input {
-                style: "font-size: 2em; grid-column: 2",
+                id: "vertical",
                 r#type: "radio",
                 checked: if direction() == Direction::Vertical { "true" } else { "false" },
-                onclick: move |_| { direction.set(Direction::Vertical) },
-                id: "vertical",
-                tabindex: 0
+                onclick: move |_| { direction.set(Direction::Vertical) }
             }
             label {
-                style: "font-size: 2em; grid-column: 3; text-align: left",
                 r#for: "vertical",
                 "vertical"
             }
