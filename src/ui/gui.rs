@@ -1,13 +1,11 @@
 use async_channel::{Receiver, Sender};
-use async_std::task::block_on;
 use dioxus::prelude::*;
 use dioxus_desktop::*;
 
 use crate::{
     logic::GameState,
-    model::{Direction, IncompleteBoard, Ship},
-    ui::{self, UiInput, UiMessage},
-    utils::log::Logger,
+    model::IncompleteBoard,
+    ui::{UiInput, UiMessage},
 };
 
 mod main_menu;
@@ -47,7 +45,7 @@ fn App() -> Element {
     use_context_provider(|| Signal::<Option<GameState>>::new(None));
     use_coroutine(|_: UnboundedReceiver<String>| {
         let mut screen_type = use_context::<Signal<GameScreenType>>();
-        let mut receiver = use_context::<Receiver<UiMessage>>();
+        let receiver = use_context::<Receiver<UiMessage>>();
         let mut logs = use_context::<Signal<Vec<String>>>();
         let mut inc_board = use_context::<Signal<IncompleteBoard>>();
         let mut versus_state = use_context::<Signal<Option<GameState>>>();
@@ -80,9 +78,9 @@ fn GameScreen() -> Element {
     let screen_type = use_context::<Signal<GameScreenType>>();
 
     match screen_type() {
-        GameScreenType::MainMenu => rsx! { crate::gui::main_menu::MainMenu {} },
-        GameScreenType::Lobby => rsx! { crate::gui::lobby::Lobby {} },
-        GameScreenType::Boards => rsx! { crate::gui::boards::Boards {} },
+        GameScreenType::MainMenu => rsx! { crate::ui::gui::main_menu::MainMenu {} },
+        GameScreenType::Lobby => rsx! { crate::ui::gui::lobby::Lobby {} },
+        GameScreenType::Boards => rsx! { crate::ui::gui::boards::Boards {} },
     }
 }
 

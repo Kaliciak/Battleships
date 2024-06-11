@@ -1,8 +1,8 @@
 use dioxus::prelude::*;
 
 use crate::{
-    gui::ASSETS_DIR,
     model::{self, Direction, Ship},
+    ui::gui::ASSETS_DIR,
 };
 
 #[component]

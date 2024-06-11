@@ -1,6 +1,7 @@
 use async_channel::Sender;
 
 pub mod cli;
+pub mod gui;
 
 use crate::{
     logic::GameState,

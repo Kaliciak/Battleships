@@ -3,9 +3,9 @@ use async_std::task::block_on;
 use dioxus::prelude::*;
 
 use crate::{
-    gui::{ASSETS_DIR, GameScreenType, common::{BoardData, ControlPanelStyle, FieldState}},
     model::{Direction, IncompleteBoard, Ship, SHIP_SIZES},
     ui::UiInput,
+    ui::gui::common::{BoardData, ControlPanelStyle, FieldState},
 };
 
 #[component]
@@ -50,15 +50,15 @@ fn determine_state(inc_board: Signal<IncompleteBoard>) -> State {
     }
 
     for ship in inc_board().0 {
-        ships[(ship.size as usize)] -= 1;
+        ships[ship.size as usize] -= 1;
     }
 
     let mut board_data = BoardData::new(inc_board().0);
     board_data.add_borders(inc_board().0);
 
     let mut current_ship_size: u8 = 0;
-    for i in 0..ships.len() {
-        if ships[i] > 0 {
+    for (i, ship_count) in ships.iter().enumerate() {
+        if *ship_count > 0 {
             current_ship_size = i as u8;
             break;
         }

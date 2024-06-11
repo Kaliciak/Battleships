@@ -2,10 +2,7 @@ use async_channel::Sender;
 use async_std::task::block_on;
 use dioxus::prelude::*;
 
-use crate::{
-    gui::{GameScreenType, common::ControlPanelStyle},
-    ui::UiInput,
-};
+use crate::ui::{UiInput, gui::common::ControlPanelStyle};
 
 #[component]
 pub fn MainMenu() -> Element {

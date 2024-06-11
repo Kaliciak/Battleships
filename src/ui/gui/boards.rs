@@ -1,13 +1,11 @@
 use async_channel::Sender;
 use async_std::task::block_on;
 use dioxus::prelude::*;
-use dioxus_desktop::*;
 
 use crate::{
-    gui::{ASSETS_DIR, GameScreenType, common::{BoardData, FieldState}},
     logic::GameState,
-    model::{Direction, IncompleteBoard, Ship, SHIP_SIZES},
     ui::UiInput,
+    ui::gui::common::{BoardData, FieldState},
 };
 
 #[component]
@@ -28,18 +26,18 @@ fn determine_opponents_board(state: Signal<Option<GameState>>) -> Vec<Vec<FieldS
     }
     let state = state().expect("");
     board_data.add_shots(state.our_shots, FieldState::Ship);
-    return board_data.board;
+    board_data.board
 }
 
 fn determine_our_board(state: Signal<Option<GameState>>) -> Vec<Vec<FieldState>> {
     if state().is_none() {
-        let mut board_data = BoardData::new(vec![]);
+        let board_data = BoardData::new(vec![]);
         return board_data.board;
     }
     let state = state().expect("");
     let mut board_data = BoardData::new(state.board.board.ships.to_vec());
     board_data.add_shots(state.their_shots, FieldState::Hit);
-    return board_data.board;
+    board_data.board
 }
 
 #[component]

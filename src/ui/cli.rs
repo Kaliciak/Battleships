@@ -29,7 +29,7 @@ Witamy w grze w statki!
    Ctrl-D => Exit\n
 ";
 
-pub fn run_cli_ui(receiver: Receiver<UiMessage>, sender: Sender<UiInput>) {
+pub fn run_cli(receiver: Receiver<UiMessage>, sender: Sender<UiInput>) {
     let (mut reader, writer) = Readline::new("> ".to_string()).unwrap();
 
     let _ = std::thread::Builder::new()
