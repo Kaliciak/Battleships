@@ -12,6 +12,12 @@ html * {
 	font-family: "waukegan";
 }
 
+@media (max-width: 100em){
+	html * {
+		font-size: 0.85em;
+	}
+}
+
 :focus {
 	outline: dotted red;
 }
@@ -29,10 +35,22 @@ body {
 	font-size: 12em;
 }
 
+@media (max-width: 100em){
+	.main-title {
+		font-size: 10em;
+	}
+}
+
 button {
 	margin: 1em auto;
 	padding: 0 1em;
 	font-size: 2.5em;
+}
+
+@media (max-width: 100em){
+	button {
+		font-size: 2em;
+	}
 }
 
 .torpedo-button {
@@ -41,7 +59,15 @@ button {
 	height: 90px;
 	padding: 0 1em 0 0;
 	background: center no-repeat url("torpeda.svg");
+	background-size: 95%;
 	border: none;
+}
+
+@media (max-width: 100em){
+	.torpedo-button {
+		width: 360px;
+		height: 77px;
+	}
 }
 
 .torpedo-button:hover {
@@ -55,6 +81,7 @@ button {
 
 .torpedo-button:active {
 	background: center no-repeat url("torpeda-ciemna.svg");
+	background-size: 95%;
 }
 
 .control-panel {
@@ -194,8 +221,8 @@ label {
 
 .board {
 	display: grid;
-	grid-template-columns: repeat(11, 5em);
-	grid-template-rows: repeat(11, 5em);
+	grid-template-columns: repeat(11, 4em);
+	grid-template-rows: repeat(11, 4em);
 	padding: 0 2em 2em 0;
 	gap: 0.5em;
 	background: #99BFB0;
@@ -227,8 +254,8 @@ label {
 	padding: 0;
 	margin: 0;
 	font-size: 1em;
-	width: 5em;
-	height: 5em;
+	width: 4em;
+	height: 4em;
 	background: black;
 }
 
@@ -237,14 +264,14 @@ label {
 	padding: 0;
 	margin: 0;
 	font-size: 1em;
-	width: 5em;
-	height: 5em;
+	width: 4em;
+	height: 4em;
 	background: black;
 }
 .field-state-miss:after {
 	position: absolute;
-	top: 2em;
-	left: 2em;
+	top: 1.3em;
+	left: 1.3em;
 	width: 1em;
 	height: 1em;
 	content: "";
@@ -256,8 +283,8 @@ label {
 	padding: 0;
 	margin: 0;
 	font-size: 1em;
-	width: 5em;
-	height: 5em;
+	width: 4em;
+	height: 4em;
 	background: #2a0;
 }
 
@@ -265,7 +292,7 @@ label {
 	padding: 0;
 	margin: 0;
 	font-size: 1em;
-	width: 5em;
-	height: 5em;
+	width: 4em;
+	height: 4em;
 	background: #a02;
 }
