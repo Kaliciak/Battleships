@@ -1,27 +1,37 @@
 use battleships::{logic::run_logic_with_ui, ui::cli::run_cli, ui::gui::run_gui};
 use clap::{Parser, Subcommand};
 
-#[derive(Parser)]
-struct Commands {
-    #[command(subcommand)]
-    ui: Option<UI>
-}
-
-#[derive(Subcommand)]
-enum UI {
-    Gui,
-    Cli
-}
-
 fn main() {
-    let args = Commands::parse();
-    match args.ui {
-        Some(UI::Gui) => run_logic_with_ui(run_gui),
-        Some(UI::Cli) => run_logic_with_ui(run_cli),
-        None => run_logic_with_ui(run_gui)
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Some(Command::GenerateKeys) => {
+            battleships::circuit::board_declaration_circuit::generate_keys();
+            battleships::circuit::field_declaration_circuit::generate_keys();
+        }
+		Some(Command::Gui) => {
+			run_logic_with_ui(run_gui);
+		}
+		Some(Command::Cli) => {
+			run_logic_with_ui(run_cli);
+		}
+        None => {
+            run_logic_with_ui(run_gui);
+        }
     }
-    // battleships::circuit::board_declaration_circuit::generate_keys();
-    // battleships::circuit::field_declaration_circuit::generate_keys();
     println!("Następna stacja: Łódź Fabryczna")
-    // generate_keys();
+}
+
+#[derive(Debug, Parser)]
+#[clap(name = "cli", version)]
+struct Cli {
+    #[clap(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    GenerateKeys,
+	Gui,
+	Cli,
 }
