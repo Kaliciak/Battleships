@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{GuiInput, GuiMessage};
+use super::{UiInput, UiMessage};
 
 const MAIN_SCREEN: &str = "
 
@@ -29,7 +29,7 @@ Witamy w grze w statki!
    Ctrl-D => Exit\n
 ";
 
-pub fn run_cli_gui(receiver: Receiver<GuiMessage>, sender: Sender<GuiInput>) {
+pub fn run_cli(receiver: Receiver<UiMessage>, sender: Sender<UiInput>) {
     let (mut reader, writer) = Readline::new("> ".to_string()).unwrap();
 
     let _ = std::thread::Builder::new()
@@ -37,7 +37,7 @@ pub fn run_cli_gui(receiver: Receiver<GuiMessage>, sender: Sender<GuiInput>) {
         .spawn(|| {
             let mut cli = Cli {
                 writer,
-                state: Arc::new(RefCell::new(GuiMessage::MainScreen)),
+                state: Arc::new(RefCell::new(UiMessage::MainScreen)),
             };
 
             let mut cli_c = cli.clone();
@@ -53,10 +53,10 @@ pub fn run_cli_gui(receiver: Receiver<GuiMessage>, sender: Sender<GuiInput>) {
             let receiving_task = async move {
                 loop {
                     match receiver.recv().await? {
-                        GuiMessage::Log(m) => {
+                        UiMessage::Log(m) => {
                             cli.log_message(&m)?;
                         }
-                        GuiMessage::Exit => {
+                        UiMessage::Exit => {
                             return Res::Ok(());
                         }
                         s => {
@@ -71,7 +71,7 @@ pub fn run_cli_gui(receiver: Receiver<GuiMessage>, sender: Sender<GuiInput>) {
         .unwrap()
         .join();
 }
-async fn get_input(reader: &mut Readline, cli: &mut Cli) -> Res<GuiInput> {
+async fn get_input(reader: &mut Readline, cli: &mut Cli) -> Res<UiInput> {
     loop {
         let input = reader.readline().await.unwrap();
         match input {
@@ -83,25 +83,25 @@ async fn get_input(reader: &mut Readline, cli: &mut Cli) -> Res<GuiInput> {
                     continue;
                 }
                 if words[0] == "create" {
-                    return Ok(GuiInput::HostGame {
+                    return Ok(UiInput::HostGame {
                         addr: words[1].to_owned(),
                         passwd: words[2].to_owned(),
                     });
                 }
                 if words[0] == "join" {
-                    return Ok(GuiInput::JoinGame {
+                    return Ok(UiInput::JoinGame {
                         addr: words[1].to_owned(),
                         passwd: words[2].to_owned(),
                     });
                 }
                 if words[0] == "msg" {
-                    return Ok(GuiInput::SendMessage(
+                    return Ok(UiInput::SendMessage(
                         words[1].to_owned(),
                         words[2..].join(" ").to_owned(),
                     ));
                 }
                 if words[0] == "shoot" {
-                    return Ok(GuiInput::Shoot(
+                    return Ok(UiInput::Shoot(
                         words[1].parse().unwrap(),
                         words[2].parse().unwrap(),
                     ));
@@ -111,10 +111,10 @@ async fn get_input(reader: &mut Readline, cli: &mut Cli) -> Res<GuiInput> {
                         cli.log_message("Invalid command")?;
                         continue;
                     }
-                    if let GuiMessage::BoardConstruction(inc_board) =
+                    if let UiMessage::BoardConstruction(inc_board) =
                         cli.state.as_ref().borrow().clone()
                     {
-                        return Ok(GuiInput::PutShip(Ship {
+                        return Ok(UiInput::PutShip(Ship {
                             x: words[1].parse().unwrap(),
                             y: words[2].parse().unwrap(),
                             size: SHIP_SIZES[inc_board.0.len()],
@@ -131,9 +131,9 @@ async fn get_input(reader: &mut Readline, cli: &mut Cli) -> Res<GuiInput> {
                 cli.log_message("Invalid command")?;
             }
             rustyline_async::ReadlineEvent::Eof => {
-                return Ok(GuiInput::Exit);
+                return Ok(UiInput::Exit);
             }
-            rustyline_async::ReadlineEvent::Interrupted => return Ok(GuiInput::Esc),
+            rustyline_async::ReadlineEvent::Interrupted => return Ok(UiInput::Esc),
         }
     }
 }
@@ -141,7 +141,7 @@ async fn get_input(reader: &mut Readline, cli: &mut Cli) -> Res<GuiInput> {
 #[derive(Clone)]
 struct Cli {
     writer: SharedWriter,
-    state: Arc<RefCell<GuiMessage>>,
+    state: Arc<RefCell<UiMessage>>,
 }
 impl Log for Cli {
     fn log_message(&self, msg: &str) -> Res<()> {
@@ -210,19 +210,19 @@ impl Screen {
 impl Cli {
     fn draw(&mut self) {
         match &*self.state.as_ref().borrow() {
-            GuiMessage::MainScreen => {
+            UiMessage::MainScreen => {
                 self.log_message(MAIN_SCREEN).unwrap();
             }
-            GuiMessage::Lobby => {
+            UiMessage::Lobby => {
                 self.log_message("\n\nLobby\n").unwrap();
             }
-            GuiMessage::BoardConstruction(board) => {
+            UiMessage::BoardConstruction(board) => {
                 // self.log_message(&format!("{:#?}", board)).unwrap();
                 let mut s = Screen::new(15, 15);
                 s.draw_board(board.0.clone(), (3, 3).into());
                 self.log_message(&s.to_string()).unwrap();
             }
-            GuiMessage::PrintGameState(state) => {
+            UiMessage::PrintGameState(state) => {
                 let mut s = Screen::new(30, 15);
                 s.draw_board(state.board.board.ships.to_vec(), (3, 3).into());
                 s.draw_board(vec![], (18, 3).into());

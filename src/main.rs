@@ -1,4 +1,4 @@
-use battleships::{gui::cli::run_cli_gui, logic::run_logic_with_gui};
+use battleships::{logic::run_logic_with_ui, ui::cli::run_cli, ui::gui::run_gui};
 use clap::{Parser, Subcommand};
 
 fn main() {
@@ -9,8 +9,14 @@ fn main() {
             battleships::circuit::board_declaration_circuit::generate_keys();
             battleships::circuit::field_declaration_circuit::generate_keys();
         }
+		Some(Command::Gui) => {
+			run_logic_with_ui(run_gui);
+		}
+		Some(Command::Cli) => {
+			run_logic_with_ui(run_cli);
+		}
         None => {
-            run_logic_with_gui(run_cli_gui);
+            run_logic_with_ui(run_gui);
         }
     }
     println!("Następna stacja: Łódź Fabryczna")
@@ -25,5 +31,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    GenerateKeys
+    GenerateKeys,
+	Gui,
+	Cli,
 }

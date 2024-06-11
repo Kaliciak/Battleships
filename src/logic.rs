@@ -10,8 +10,8 @@ use crate::{
         field_declaration_circuit::FieldDeclarationCircuit,
     },
     crypto::proofs::CorrectnessProof,
-    gui::{GuiInput, GuiMessage},
     model::FieldState,
+    ui::{UiInput, UiMessage},
     utils::async_receiver::AsyncReceiver,
 };
 
@@ -37,9 +37,9 @@ pub struct GameState {
     pub turn_of: Player,
 }
 
-pub fn run_logic_with_gui(gui_callback: impl Fn(Receiver<GuiMessage>, Sender<GuiInput>) -> ()) {
-    let (s_input, r_input) = async_channel::unbounded::<GuiMessage>();
-    let (s_output, r_output) = async_channel::unbounded::<GuiInput>();
+pub fn run_logic_with_ui(ui_callback: impl Fn(Receiver<UiMessage>, Sender<UiInput>) -> ()) {
+    let (s_input, r_input) = async_channel::unbounded::<UiMessage>();
+    let (s_output, r_output) = async_channel::unbounded::<UiInput>();
 
     std::thread::Builder::new()
         .stack_size(1024 * 1024)
@@ -48,5 +48,5 @@ pub fn run_logic_with_gui(gui_callback: impl Fn(Receiver<GuiMessage>, Sender<Gui
         })
         .unwrap();
 
-    gui_callback(r_input, s_output);
+    ui_callback(r_input, s_output);
 }

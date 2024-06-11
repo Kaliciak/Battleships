@@ -5,10 +5,10 @@ use crate::{
         board_declaration_circuit::CircuitField, field_declaration_circuit::FieldDeclarationCircuit,
     },
     crypto::proofs::{CorrectnessProof, PublicInput},
-    gui::{GuiInput, GuiReceiver, GuiSender},
     logic::GameMessage,
     model::FieldState,
     net::message::Message,
+    ui::{UiInput, UiReceiver, UiSender},
     utils::{
         log::{Log, Logger},
         result::{Er, Res},
@@ -39,8 +39,8 @@ impl Player {
 /// All relevant information/channels available in the main game loop.
 pub struct GameContext {
     pub player: Player,
-    pub gui_receiver: GuiReceiver,
-    pub gui_sender: GuiSender,
+    pub ui_receiver: UiReceiver,
+    pub ui_sender: UiSender,
     pub net_receiver: NetReceiver,
     pub net_sender: NetSender,
     pub keys: GameKeys,
@@ -48,9 +48,9 @@ pub struct GameContext {
 
 impl GameContext {
     pub async fn game_loop(&mut self) -> Res<()> {
-        self.gui_sender.send(crate::gui::GuiMessage::Lobby).await?;
+        self.ui_sender.send(crate::ui::UiMessage::Lobby).await?;
         let (board, their_hash) = initialize_boards(self).await?;
-        self.gui_sender
+        self.ui_sender
             .log_message("Boards have been successfully initialized!")?;
         GameState {
             board,
@@ -70,28 +70,28 @@ impl GameState {
     async fn process(&mut self, game_context: &mut GameContext) -> Res<()> {
         loop {
             game_context
-                .gui_sender
-                .send(crate::gui::GuiMessage::PrintGameState(self.clone()))
+                .ui_sender
+                .send(crate::ui::UiMessage::PrintGameState(self.clone()))
                 .await?;
 
             if are_all_discovered(&self.their_shots) {
-                game_context.gui_sender.log_message("We have lost...")?;
+                game_context.ui_sender.log_message("We have lost...")?;
                 return Ok(());
             }
             if are_all_discovered(&self.our_shots) {
-                game_context.gui_sender.log_message("We have won!")?;
+                game_context.ui_sender.log_message("We have won!")?;
                 return Ok(());
             }
 
             let should_switch: bool;
             if self.our_role == self.turn_of {
                 game_context
-                    .gui_sender
+                    .ui_sender
                     .log_message("Processing our turn...")?;
                 should_switch = self.process_our_turn(game_context).await?;
             } else {
                 game_context
-                    .gui_sender
+                    .ui_sender
                     .log_message("Processing turn of the other player...")?;
                 should_switch = self.process_their_turn(game_context).await?;
             }
@@ -103,9 +103,9 @@ impl GameState {
     }
     async fn process_our_turn(&mut self, game_context: &mut GameContext) -> Res<bool> {
         loop {
-            if let GuiInput::Shoot(x, y) = game_context.gui_receiver.get().await? {
+            if let UiInput::Shoot(x, y) = game_context.ui_receiver.get().await? {
                 game_context
-                    .gui_sender
+                    .ui_sender
                     .log_message(&format!("Shooting at ({x}, {y})"))?;
                 game_context
                     .net_sender
@@ -116,7 +116,7 @@ impl GameState {
                         game_context.net_receiver.get().await?
                     {
                         game_context
-                            .gui_sender
+                            .ui_sender
                             .log_message("Received response, verifying...")?;
                         let keys_clone = game_context.keys.field_declaration_keys.clone();
                         let hash_input: PublicInput = self.their_hash.clone().to_vec().into();
@@ -135,7 +135,7 @@ impl GameState {
                                 message: "Invalid proof of the field!".to_owned(),
                             });
                         }
-                        game_context.gui_sender.log_message(&format!(
+                        game_context.ui_sender.log_message(&format!(
                             "Received proof is correct. The field ({x}, {y}) is {}",
                             match state {
                                 FieldState::Empty => "empty :(",
@@ -152,25 +152,25 @@ impl GameState {
 
     async fn process_their_turn(&mut self, game_context: &mut GameContext) -> Res<bool> {
         game_context
-            .gui_sender
+            .ui_sender
             .log_message("Waiting for opponent's query")?;
         loop {
             if let Message::Value(GameMessage::AskForField(x, y)) =
                 game_context.net_receiver.get().await?
             {
-                game_context.gui_sender.log_message(&format!(
+                game_context.ui_sender.log_message(&format!(
                     "Opponent asked for ({x}, {y}), generating proof..."
                 ))?;
                 let state = self.board.board.get_field_state(x, y);
                 let circ: FieldDeclarationCircuit = (self.board, x, y).into();
-                let logger: Logger = game_context.gui_sender.clone().into();
+                let logger: Logger = game_context.ui_sender.clone().into();
                 let keys = game_context.keys.field_declaration_keys.clone();
                 let proof =
                     spawn_thread_async(move || CorrectnessProof::create(circ, logger, keys))
                         .await??;
 
                 game_context
-                    .gui_sender
+                    .ui_sender
                     .log_message("Field proof generated, sending...")?;
                 game_context
                     .net_sender

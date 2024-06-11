@@ -5,8 +5,8 @@ use futures::{future::Either, pin_mut, select, FutureExt};
 
 use crate::{
     crypto::keys::ArkKeys,
-    gui::{GuiInput, GuiMessage, GuiReceiver, GuiSender},
     net::{connection::Endpoint, message::Message},
+    ui::{UiInput, UiMessage, UiReceiver, UiSender},
     utils::{
         async_receiver::AsyncReceiver,
         log::Log,
@@ -23,12 +23,12 @@ use super::{
 pub type NetSender = Sender<Message<GameMessage>>;
 pub type NetReceiver = AsyncReceiver<Message<GameMessage>>;
 
-pub async fn run_logic_async(gui_receiver: GuiReceiver, gui_sender: GuiSender) -> Res<()> {
-    let sender_clone = gui_sender.clone();
+pub async fn run_logic_async(ui_receiver: UiReceiver, ui_sender: UiSender) -> Res<()> {
+    let sender_clone = ui_sender.clone();
     let (filtered_receiver, buffer_task, reclaim) =
-        gui_receiver.into_bufferred(|input, sender| async move {
+        ui_receiver.into_bufferred(|input, sender| async move {
             match input {
-                GuiInput::Exit => Err(Er {
+                UiInput::Exit => Err(Er {
                     message: "".to_owned(),
                 }),
                 x => {
@@ -42,7 +42,7 @@ pub async fn run_logic_async(gui_receiver: GuiReceiver, gui_sender: GuiSender) -
             buffer_task.await;
             Ok(())
         },
-        logic_main_loop(filtered_receiver, gui_sender),
+        logic_main_loop(filtered_receiver, ui_sender),
     )
     .await;
     reclaim.ask().await;
@@ -50,20 +50,20 @@ pub async fn run_logic_async(gui_receiver: GuiReceiver, gui_sender: GuiSender) -
     if let Err(Er { message }) = result {
         let _ = sender_clone.log_message(&format!("Main thread exited with error: {message}"));
     }
-    let _ = sender_clone.send(GuiMessage::Exit).await;
+    let _ = sender_clone.send(UiMessage::Exit).await;
     Ok(())
 }
 
 /// Enter the game's logic
-async fn logic_main_loop(mut gui_receiver: GuiReceiver, gui_sender: GuiSender) -> Res<()> {
+async fn logic_main_loop(mut ui_receiver: UiReceiver, ui_sender: UiSender) -> Res<()> {
     let keys = GameKeys {
-        board_declaration_keys: ArkKeys::load(gui_sender.clone().into(), "keys/board_declaration"),
-        field_declaration_keys: ArkKeys::load(gui_sender.clone().into(), "keys/field_declaration"),
+        board_declaration_keys: ArkKeys::load(ui_sender.clone().into(), "keys/board_declaration"),
+        field_declaration_keys: ArkKeys::load(ui_sender.clone().into(), "keys/field_declaration"),
     };
 
     let interrupt_filter = |msg| async move {
         match msg {
-            GuiInput::Esc => Err(Er {
+            UiInput::Esc => Err(Er {
                 message: "Interrupted".to_owned(),
             }),
             _ => Ok(()),
@@ -71,23 +71,23 @@ async fn logic_main_loop(mut gui_receiver: GuiReceiver, gui_sender: GuiSender) -
     };
 
     loop {
-        gui_sender.send(GuiMessage::MainScreen).await?;
+        ui_sender.send(UiMessage::MainScreen).await?;
 
-        match gui_receiver.get().await? {
-            crate::gui::GuiInput::HostGame { addr, passwd } => {
+        match ui_receiver.get().await? {
+            crate::ui::UiInput::HostGame { addr, passwd } => {
                 if let Ok(Either::Right(endpoint)) = select_first(
-                    gui_receiver.consume_in_loop(interrupt_filter),
+                    ui_receiver.consume_in_loop(interrupt_filter),
                     Endpoint::<GameMessage>::accept_incoming_connection(
                         &addr,
                         &passwd,
-                        gui_sender.clone().into(),
+                        ui_sender.clone().into(),
                     ),
                 )
                 .await
                 {
-                    gui_receiver = enter_lobby(
-                        gui_receiver,
-                        gui_sender.clone(),
+                    ui_receiver = enter_lobby(
+                        ui_receiver,
+                        ui_sender.clone(),
                         endpoint,
                         Player::Host,
                         keys.clone(),
@@ -95,20 +95,20 @@ async fn logic_main_loop(mut gui_receiver: GuiReceiver, gui_sender: GuiSender) -
                     .await?;
                 }
             }
-            crate::gui::GuiInput::JoinGame { addr, passwd } => {
+            crate::ui::UiInput::JoinGame { addr, passwd } => {
                 if let Ok(Either::Right(endpoint)) = select_first(
-                    gui_receiver.consume_in_loop(interrupt_filter),
+                    ui_receiver.consume_in_loop(interrupt_filter),
                     Endpoint::<GameMessage>::create_connection_to(
                         &addr,
                         &passwd,
-                        gui_sender.clone().into(),
+                        ui_sender.clone().into(),
                     ),
                 )
                 .await
                 {
-                    gui_receiver = enter_lobby(
-                        gui_receiver,
-                        gui_sender.clone(),
+                    ui_receiver = enter_lobby(
+                        ui_receiver,
+                        ui_sender.clone(),
                         endpoint,
                         Player::Client,
                         keys.clone(),
@@ -116,7 +116,7 @@ async fn logic_main_loop(mut gui_receiver: GuiReceiver, gui_sender: GuiSender) -
                     .await?;
                 }
             }
-            GuiInput::Esc => {
+            UiInput::Esc => {
                 return Ok(());
             }
             _ => {}
@@ -125,25 +125,25 @@ async fn logic_main_loop(mut gui_receiver: GuiReceiver, gui_sender: GuiSender) -
 }
 
 async fn enter_lobby(
-    gui_receiver: GuiReceiver,
-    gui_sender: GuiSender,
+    ui_receiver: UiReceiver,
+    ui_sender: UiSender,
     endpoint: Endpoint<GameMessage>,
     player: Player,
     keys: GameKeys,
-) -> Res<GuiReceiver> {
+) -> Res<UiReceiver> {
     let (net_sender, net_receiver, net_loop_task) = endpoint.as_channel_pair();
     let net_sender_clone1 = net_sender.clone();
     let filter = {
         let counter = Arc::new(net_sender_clone1);
-        move |input, sender: Sender<GuiInput>| {
+        move |input, sender: Sender<UiInput>| {
             let net_sender = Arc::clone(&counter);
             async move {
                 match input {
-                    GuiInput::SendMessage(sender, info) => {
+                    UiInput::SendMessage(sender, info) => {
                         net_sender.send(Message::Info { sender, info }).await?;
                         Ok(())
                     }
-                    GuiInput::Esc => Err(Er {
+                    UiInput::Esc => Err(Er {
                         message: "Interrupt".to_owned(),
                     }),
                     x => {
@@ -155,12 +155,12 @@ async fn enter_lobby(
         }
     };
 
-    let (filtret_gui_input, buffer_loop_task, reclaim) = gui_receiver.into_bufferred(filter);
-    let gui_sender_clone = gui_sender.clone();
+    let (filtret_ui_input, buffer_loop_task, reclaim) = ui_receiver.into_bufferred(filter);
+    let ui_sender_clone = ui_sender.clone();
     let mut game_context = GameContext {
         player,
-        gui_receiver: filtret_gui_input,
-        gui_sender,
+        ui_receiver: filtret_ui_input,
+        ui_sender,
         net_receiver,
         net_sender,
         keys,
@@ -179,17 +179,17 @@ async fn enter_lobby(
 
             r = game_loop_fuse => {
                 if let Err(e) = r {
-                    gui_sender_clone.log_message(&format!("Error in the main loop: {}", e.message))?;
+                    ui_sender_clone.log_message(&format!("Error in the main loop: {}", e.message))?;
                     reclaim.ask().await;
                 }
                 else {
-                    gui_sender_clone.log_message("The game ended. Interrupt to exit")?;
+                    ui_sender_clone.log_message("The game ended. Interrupt to exit")?;
                 }
             }
 
             r = net_loop_task_fuse => {
                 if let Err(e) = r {
-                    gui_sender_clone.log_message(&format!("Received network error: {}", e.message))?;
+                    ui_sender_clone.log_message(&format!("Received network error: {}", e.message))?;
                 }
             }
         }

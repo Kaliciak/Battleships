@@ -1,6 +1,7 @@
 use async_channel::Sender;
 
 pub mod cli;
+pub mod gui;
 
 use crate::{
     logic::GameState,
@@ -12,25 +13,25 @@ use crate::{
     },
 };
 
-pub type GuiSender = Sender<GuiMessage>;
-pub type GuiReceiver = AsyncReceiver<GuiInput>;
+pub type UiSender = Sender<UiMessage>;
+pub type UiReceiver = AsyncReceiver<UiInput>;
 
-impl Log for GuiSender {
+impl Log for UiSender {
     fn log_message(&self, msg: &str) -> Res<()> {
-        self.send_blocking(GuiMessage::Log(msg.to_owned()))?;
+        self.send_blocking(UiMessage::Log(msg.to_owned()))?;
         Ok(())
     }
 }
 
-impl From<GuiSender> for Logger {
-    fn from(value: GuiSender) -> Self {
+impl From<UiSender> for Logger {
+    fn from(value: UiSender) -> Self {
         Logger::new(value)
     }
 }
 
-/// Message (state) that can be send to the GUI
+/// Message (state) that can be send to the UI
 #[derive(Clone)]
-pub enum GuiMessage {
+pub enum UiMessage {
     Log(String),
     MainScreen,
     Lobby,
@@ -39,8 +40,8 @@ pub enum GuiMessage {
     Exit,
 }
 
-/// Input received from the GUI
-pub enum GuiInput {
+/// Input received from the UI
+pub enum UiInput {
     HostGame { addr: String, passwd: String },
     JoinGame { addr: String, passwd: String },
     SendMessage(String, String),

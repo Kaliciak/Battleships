@@ -5,7 +5,7 @@ use crate::utils::ship_helpers::*;
 
 pub const SHIP_SIZES: [u8; 15] = [1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5];
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Direction {
     // downwards
     Vertical = 0,
