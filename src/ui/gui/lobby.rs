@@ -24,6 +24,14 @@ pub fn Lobby() -> Element {
                     ShipDirection {
                         style: ""
                     }
+                    button {
+                        class: "abort-button",
+                        onclick: move |_| {
+                            let sender = use_context::<Sender<UiInput>>();
+                            block_on(sender.send(UiInput::ResetBoard)).expect("");
+                        },
+                        "reset board"
+                    }
                 }
             }
             Board {
