@@ -1,9 +1,9 @@
 use crate::{
     circuit::board_declaration_circuit::BoardDeclarationCircuit,
     crypto::{keys::ArkKeys, proofs::CorrectnessProof},
-    ui::{UiInput, UiMessage, UiReceiver, UiSender},
     model::{Board, IncompleteBoard},
     net::message::Message,
+    ui::{UiInput, UiMessage, UiReceiver, UiSender},
     utils::{
         log::{Log, Logger},
         result::{Er, Res},
@@ -20,22 +20,32 @@ use super::{
 /// Build a correct board according to the user inputs
 async fn build_board(ui_receiver: &mut UiReceiver, ui_sender: UiSender) -> Res<Board> {
     let mut inc_board = IncompleteBoard::new();
-    while inc_board.0.len() < 15 {
+    loop {
         ui_sender
             .send(UiMessage::BoardConstruction(inc_board.clone()))
             .await?;
 
-        if let UiInput::PutShip(ship) = ui_receiver.get().await? {
-            if !inc_board.can_be_extended_with(ship) {
-                ui_sender.log_message("Cannot extend the board with this ship")?;
-            } else {
-                ui_sender.log_message("Ship successfully added")?;
-                inc_board.extend(ship);
+        if inc_board.0.len() == 15 {
+            break;
+        }
+
+        match ui_receiver.get().await? {
+            UiInput::PutShip(ship) => {
+                if !inc_board.can_be_extended_with(ship) {
+                    ui_sender.log_message("Cannot extend the board with this ship")?;
+                } else {
+                    ui_sender.log_message("Ship successfully added")?;
+                    inc_board.extend(ship);
+                }
             }
+            UiInput::ResetBoard => {
+                inc_board = IncompleteBoard::new();
+            }
+            _ => {}
         }
     }
 
-    ui_sender.log_message("Board has been successfully build!")?;
+    ui_sender.log_message("Board has been successfully built!")?;
     Ok(inc_board.build_board())
 }
 

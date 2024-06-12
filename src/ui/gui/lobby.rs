@@ -4,8 +4,8 @@ use dioxus::prelude::*;
 
 use crate::{
     model::{Direction, IncompleteBoard, Ship, SHIP_SIZES},
-    ui::UiInput,
     ui::gui::common::{BoardData, ControlPanelStyle, FieldState},
+    ui::UiInput,
 };
 
 #[component]
@@ -43,7 +43,7 @@ struct State {
 fn determine_state(inc_board: Signal<IncompleteBoard>) -> State {
     let mut ships = vec![];
     for s in SHIP_SIZES {
-        while ((s+1) as usize) > ships.len() {
+        while ((s + 1) as usize) > ships.len() {
             ships.push(0);
         }
         ships[s as usize] += 1;
@@ -67,7 +67,7 @@ fn determine_state(inc_board: Signal<IncompleteBoard>) -> State {
     State {
         ships,
         board: board_data.board,
-        current_ship_size
+        current_ship_size,
     }
 }
 

@@ -46,6 +46,7 @@ pub enum UiInput {
     JoinGame { addr: String, passwd: String },
     SendMessage(String, String),
     PutShip(Ship),
+    ResetBoard,
     Shoot(u8, u8),
     Esc,
     Exit,

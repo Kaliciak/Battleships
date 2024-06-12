@@ -9,12 +9,12 @@ fn main() {
             battleships::circuit::board_declaration_circuit::generate_keys();
             battleships::circuit::field_declaration_circuit::generate_keys();
         }
-		Some(Command::Gui) => {
-			run_logic_with_ui(run_gui);
-		}
-		Some(Command::Cli) => {
-			run_logic_with_ui(run_cli);
-		}
+        Some(Command::Gui) => {
+            run_logic_with_ui(run_gui);
+        }
+        Some(Command::Cli) => {
+            run_logic_with_ui(run_cli);
+        }
         None => {
             run_logic_with_ui(run_gui);
         }
@@ -32,6 +32,6 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     GenerateKeys,
-	Gui,
-	Cli,
+    Gui,
+    Cli,
 }

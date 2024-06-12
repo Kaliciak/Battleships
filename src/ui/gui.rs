@@ -8,10 +8,10 @@ use crate::{
     ui::{UiInput, UiMessage},
 };
 
-mod main_menu;
-mod lobby;
 mod boards;
 mod common;
+mod lobby;
+mod main_menu;
 
 pub static ASSETS_DIR: &str = "assets";
 pub static GAME_TITLE: &str = "Battleships";
@@ -19,8 +19,7 @@ pub static GAME_TITLE: &str = "Battleships";
 pub fn run_gui(receiver: Receiver<UiMessage>, sender: Sender<UiInput>) {
     let window_config = WindowBuilder::new()
         .with_maximized(true)
-        .with_title("Battleships")
-        ;
+        .with_title("Battleships");
     let config = Config::new().with_window(window_config);
 
     LaunchBuilder::desktop()
@@ -52,15 +51,15 @@ fn App() -> Element {
         async move {
             loop {
                 match receiver.recv().await.expect("") {
-                    UiMessage::MainScreen => { screen_type.set(GameScreenType::MainMenu) }
-                    UiMessage::Lobby => { screen_type.set(GameScreenType::Lobby) }
-                    UiMessage::Log(s) => { logs.push(s) }
-                    UiMessage::BoardConstruction(board) => { inc_board.set(board) }
+                    UiMessage::MainScreen => screen_type.set(GameScreenType::MainMenu),
+                    UiMessage::Lobby => screen_type.set(GameScreenType::Lobby),
+                    UiMessage::Log(s) => logs.push(s),
+                    UiMessage::BoardConstruction(board) => inc_board.set(board),
                     UiMessage::PrintGameState(state) => {
                         screen_type.set(GameScreenType::Boards);
                         versus_state.set(Some(state));
                     }
-                    UiMessage::Exit => { window().close() }
+                    UiMessage::Exit => window().close(),
                 }
             }
         }

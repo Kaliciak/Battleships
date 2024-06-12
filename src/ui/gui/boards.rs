@@ -4,8 +4,8 @@ use dioxus::prelude::*;
 
 use crate::{
     logic::GameState,
-    ui::UiInput,
     ui::gui::common::{BoardData, FieldState},
+    ui::UiInput,
 };
 
 #[component]

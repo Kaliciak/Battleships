@@ -2,7 +2,7 @@ use async_channel::Sender;
 use async_std::task::block_on;
 use dioxus::prelude::*;
 
-use crate::ui::{UiInput, gui::common::ControlPanelStyle};
+use crate::ui::{gui::common::ControlPanelStyle, UiInput};
 
 #[component]
 pub fn MainMenu() -> Element {
@@ -12,7 +12,6 @@ pub fn MainMenu() -> Element {
 
     let mut url = use_signal(|| "".to_string());
     let mut passwd = use_signal(|| "".to_string());
-
 
     rsx! {
         h1 { class: "main-title", "Battleships" }

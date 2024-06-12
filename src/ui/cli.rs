@@ -20,13 +20,21 @@ use super::{UiInput, UiMessage};
 const MAIN_SCREEN: &str = "
 
 Witamy w grze w statki!
-   create address:port password => create game
-   join address:port password => join game
-   msg name info => send msg to the second player
-   put x y (right/down) => put a ship on your board (coordinates in range from 1 to 10)
-   shoot x y => shoot at the position (x, y)
-   Ctrl-C => Interrupt
-   Ctrl-D => Exit\n
+
+Command list:
+    Establishing connection:
+        create address:port password => create game
+        join address:port password => join game
+        msg name info => send msg to the second player
+    Creating board
+        put x y (right/down) => put a ship on your board (coordinates in range from 1 to 10)
+        clear => clear the board
+    Main game:
+        shoot x y => shoot at the position (x, y)
+    Navigating:
+        Ctrl-C => Interrupt
+        Ctrl-D => Exit
+
 ";
 
 pub fn run_cli(receiver: Receiver<UiMessage>, sender: Sender<UiInput>) {
@@ -78,6 +86,13 @@ async fn get_input(reader: &mut Readline, cli: &mut Cli) -> Res<UiInput> {
             rustyline_async::ReadlineEvent::Line(line) => {
                 reader.add_history_entry(line.clone());
                 let words = line.split(' ').collect::<Vec<&str>>();
+                if words.len() == 0 {
+                    cli.log_message("Invalid command")?;
+                    continue;
+                }
+                if words[0] == "clear" {
+                    return Ok(UiInput::ResetBoard);
+                }
                 if words.len() < 3 {
                     cli.log_message("Invalid command")?;
                     continue;

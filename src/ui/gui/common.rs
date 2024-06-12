@@ -58,8 +58,9 @@ impl FieldState {
             FieldState::Empty => "field-state-empty",
             FieldState::Miss => "field-state-miss",
             FieldState::Ship => "field-state-ship",
-            FieldState::Hit => "field-state-hit"
-        }.to_string()
+            FieldState::Hit => "field-state-hit",
+        }
+        .to_string()
     }
 }
 
@@ -69,7 +70,7 @@ pub struct BoardData {
 
 impl BoardData {
     pub fn new(ships: Vec<Ship>) -> Self {
-        let mut board = vec![ vec![ FieldState::Empty ] ];
+        let mut board = vec![vec![FieldState::Empty]];
         for _ in 0..11 {
             let val = board[0][0].clone();
             board[0].push(val);
@@ -124,9 +125,11 @@ impl BoardData {
 
     pub fn add_shots(&mut self, shots: Vec<(u8, u8, model::FieldState)>, hit_state: FieldState) {
         for shot in shots {
-            self.board[shot.1 as usize][shot.0 as usize] =
-                if shot.2 == model::FieldState::Empty { FieldState::Miss }
-                else { hit_state.clone() };
+            self.board[shot.1 as usize][shot.0 as usize] = if shot.2 == model::FieldState::Empty {
+                FieldState::Miss
+            } else {
+                hit_state.clone()
+            };
         }
     }
 }
